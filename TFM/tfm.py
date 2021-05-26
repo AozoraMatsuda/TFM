@@ -29,13 +29,13 @@ class TFM(pd.DataFrame):
         L: float = 0,
     ) -> "TFM":
 
-        dim = cls._getDimensions(disXY)
+        dim = cls._get_Dimensions(disXY)
 
         # get disformation and coordinate
-        disX = disXY.loc[:, ["x", "y", "d_x"]] * pixel
-        disX = disX.set_index(["y", "x"]).iloc[:, 0].unstack()
-        disY = disXY.loc[:, ["x", "y", "d_y"]] * pixel
-        disY = disY.set_index(["y", "x"]).iloc[:, 0].unstack()
+        disX = cls._rearrange_for_coordinate(disXY, target="d_x")
+        disX *= pixel
+        disY = cls._rearrange_for_coordinate(disXY, target="d_y")
+        disY *= pixel
         gridX = disXY.loc[:, "x"]
         gridY = disXY.loc[:, "y"]
 
@@ -52,28 +52,12 @@ class TFM(pd.DataFrame):
         disYCF = np.fft.fft2(disY)
         disXCF[0, 0] = 0
         disYCF[0, 0] = 0
-        # wave function in fourier space
-        Kx = (
-            (2 * np.pi)
-            / (D * nCol)
-            * np.hstack(
-                [
-                    np.arange(0, nCol // 2 + 1, 1),
-                    (-1) * np.arange(np.round(nCol / 2) - 1, 0, -1),
-                ]
-            )
-        )
-        Ky = (
-            (2 * np.pi)
-            / (D * nRow)
-            * np.hstack(
-                [
-                    np.arange(0, nRow // 2 + 1, 1),
-                    (-1) * np.arange(np.round(nRow / 2) - 1, 0, -1),
-                ]
-            )
-        )
 
+        # wave function in fourier space
+        Kx = cls._get_Wavefunction_in_FS(nCol, D)
+        Ky = cls._get_Wavefunction_in_FS(nRow, D)
+
+        # calculate convolution
         H = np.identity(2, dtype=np.complex) * L * L
         G = np.zeros([2, 2], dtype=np.complex)
         TractionXF = np.zeros([nRow, nCol], dtype=np.complex)
@@ -126,12 +110,31 @@ class TFM(pd.DataFrame):
         return TFM(df)
 
     @staticmethod
-    def _getDimensions(disXY: "PIV") -> list:
+    def _get_Dimensions(disXY: "PIV") -> list:
         dim = [0] * 3
         dim[2] = disXY.iloc[1, 0] - disXY.iloc[0, 0]
         dim[0] = disXY.iloc[:, 0].nunique()
         dim[1] = disXY.iloc[:, 1].nunique()
         return dim
+
+    @staticmethod
+    def _rearrange_for_coordinate(df: "PIV", target: str) -> "PIV":
+        data = df.loc[:, ["x", "y", target]]
+        return data.set_index(["y", "x"]).iloc[:, 0].unstack()
+
+    @staticmethod
+    def _get_Wavefunction_in_FS(num: int, D: int) -> np.array:
+        ls = (
+            (2 * np.pi)
+            / (D * num)
+            * np.hstack(
+                [
+                    np.arange(0, num // 2 + 1, 1),
+                    (-1) * np.arange(np.round(num / 2) - 1, 0, -1),
+                ]
+            )
+        )
+        return ls
 
     def draw(self, scale: int = 50, save_img: bool = False, name: str = None):
         df = self.copy()
