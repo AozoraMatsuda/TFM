@@ -23,7 +23,7 @@ class DPF(Vectors):
         """
         dim[0] the number of points in x axis
         dim[1] the number of points in y axis
-        dim[2] real distance between points
+        dim[2] distance between points (pixel)
         """
         dim = [0] * 3
         dim[2] = self.iloc[1, 0] - self.iloc[0, 0]
