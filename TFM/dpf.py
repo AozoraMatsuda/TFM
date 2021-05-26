@@ -26,8 +26,8 @@ class DPF(Vectors):
         dim[1] = self.iloc[:, 1].nunique()
         return dim
 
-    def rearrange_for_coordinate(self, target: str) -> pd.DataFrame:
-        return super().rearrange_for_coordinate(target)
+    def rearrange_by_coordinate(self, target: str) -> pd.DataFrame:
+        return super().rearrange_by_coordinate(target)
 
     def draw(self, scale: int = None, save_img: bool = False, name: str = None):
         super().draw(scale=scale, save_img=save_img, name=name)

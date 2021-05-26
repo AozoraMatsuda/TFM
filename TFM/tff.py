@@ -33,9 +33,9 @@ class TFF(Vectors):
         dim = disXY.get_Dimensions()
 
         # get disformation and coordinate
-        disX = disXY.rearrange_for_coordinate("d_x")
+        disX = disXY.rearrange_by_coordinate("d_x")
         disX *= pixel
-        disY = disXY.rearrange_for_coordinate("d_y")
+        disY = disXY.rearrange_by_coordinate("d_y")
         disY *= pixel
         gridX = disXY.loc[:, "x"]
         gridY = disXY.loc[:, "y"]
@@ -124,8 +124,8 @@ class TFF(Vectors):
         )
         return ls
 
-    def rearrange_for_coordinate(self, target: str) -> pd.DataFrame:
-        return super().rearrange_for_coordinate(target)
+    def rearrange_by_coordinate(self, target: str) -> pd.DataFrame:
+        return super().rearrange_by_coordinate(target)
 
     def draw(self, scale: int = None, save_img: bool = False, name: str = None):
         super().draw(scale=scale, save_img=save_img, name=name)

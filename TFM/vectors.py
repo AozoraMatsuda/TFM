@@ -4,7 +4,7 @@ import pandas as pd
 
 
 class Vectors(pd.DataFrame):
-    def rearrange_for_coordinate(self, target: str) -> pd.DataFrame:
+    def rearrange_by_coordinate(self, target: str) -> pd.DataFrame:
         data = self.loc[:, ["x", "y", target]]
         return data.set_index(["y", "x"]).iloc[:, 0].unstack()
 
