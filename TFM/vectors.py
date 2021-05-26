@@ -8,7 +8,7 @@ class Vectors(pd.DataFrame):
         data = self.loc[:, ["x", "y", target]]
         return data.set_index(["y", "x"]).iloc[:, 0].unstack()
 
-    def draw(self, scale: int = 50, save_img: bool = False, name: str = None):
+    def draw(self, scale: int = None, save_img: bool = False, name: str = None):
         df = self.copy()
         fig = plt.figure(figsize=(50, 50), facecolor="#180614", edgecolor="#302833")
         ax = fig.add_subplot(111)
@@ -20,11 +20,12 @@ class Vectors(pd.DataFrame):
         ax.set_ylabel("y", fontsize=16)
 
         # 軸範囲の設定
-        m_x, m_y = (
-            df["x"].min() - 20,
-            df["y"].min() - 20,
-        )
+        m_x, m_y = df["x"].min() - 20, df["y"].min() - 20
         M_x, M_y = df["x"].max() + 20, df["y"].max() + 20
+
+        width = M_x - m_x
+        height = M_y - m_y
+
         ax.set_xlim(m_x, M_x)
         ax.set_ylim(m_y, M_y)
 
@@ -38,6 +39,11 @@ class Vectors(pd.DataFrame):
         F_X = df.iloc[:, 2]
         F_Y = df.iloc[:, 3]
         M = df.iloc[:, 4]
+        scale = (
+            max(F_X.abs().max() / (0.05 * width), F_Y.abs().max() / (0.05 * height))
+            if scale is None
+            else scale
+        )
         ax.quiver(
             X,
             Y,

@@ -127,6 +127,6 @@ class TFF(Vectors):
     def rearrange_for_coordinate(self, target: str) -> pd.DataFrame:
         return super().rearrange_for_coordinate(target)
 
-    def draw(self, scale: int = 50, save_img: bool = False, name: str = None):
+    def draw(self, scale: int = None, save_img: bool = False, name: str = None):
         super().draw(scale=scale, save_img=save_img, name=name)
 
