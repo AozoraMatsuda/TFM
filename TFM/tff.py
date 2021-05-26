@@ -1,40 +1,41 @@
+from os import stat
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from TFM import PIV
+from TFM import DPF, Vectors
 
 
-class TFM(pd.DataFrame):
+class TFF(Vectors):
     @property
     def _constructor(self):
-        return TFM
+        return TFF
 
     @classmethod
-    def load_TFM(cls, path: str) -> "TFM":
+    def load_TFF(cls, path: str) -> "TFF":
         file = open(path, "r")
         data = file.read()
         data = [s.split() for s in data.split("\n")]
         df = pd.DataFrame(
             data, columns=["x", "y", "f_x", "f_y", "m"], dtype=np.float64
         ).dropna()
-        return TFM(df)
+        return TFF(df)
 
     @classmethod
     def FFTC(
         cls,
-        disXY: "PIV",
+        disXY: "DPF",
         pixel: float = 0.090,
         mu: float = 0.5,
         E: float = 5000,
         L: float = 0,
-    ) -> "TFM":
+    ) -> "TFF":
 
-        dim = cls._get_Dimensions(disXY)
+        dim = disXY.get_Dimensions()
 
         # get disformation and coordinate
-        disX = cls._rearrange_for_coordinate(disXY, target="d_x")
+        disX = disXY.rearrange_for_coordinate("d_x")
         disX *= pixel
-        disY = cls._rearrange_for_coordinate(disXY, target="d_y")
+        disY = disXY.rearrange_for_coordinate("d_y")
         disY *= pixel
         gridX = disXY.loc[:, "x"]
         gridY = disXY.loc[:, "y"]
@@ -107,20 +108,7 @@ class TFM(pd.DataFrame):
                 "m": magnitude,
             }
         )
-        return TFM(df)
-
-    @staticmethod
-    def _get_Dimensions(disXY: "PIV") -> list:
-        dim = [0] * 3
-        dim[2] = disXY.iloc[1, 0] - disXY.iloc[0, 0]
-        dim[0] = disXY.iloc[:, 0].nunique()
-        dim[1] = disXY.iloc[:, 1].nunique()
-        return dim
-
-    @staticmethod
-    def _rearrange_for_coordinate(df: "PIV", target: str) -> "PIV":
-        data = df.loc[:, ["x", "y", target]]
-        return data.set_index(["y", "x"]).iloc[:, 0].unstack()
+        return TFF(df)
 
     @staticmethod
     def _get_Wavefunction_in_FS(num: int, D: int) -> np.array:
@@ -136,50 +124,9 @@ class TFM(pd.DataFrame):
         )
         return ls
 
+    def rearrange_for_coordinate(self, target: str) -> pd.DataFrame:
+        return super().rearrange_for_coordinate(target)
+
     def draw(self, scale: int = 50, save_img: bool = False, name: str = None):
-        df = self.copy()
-        fig = plt.figure(figsize=(50, 50), facecolor="#180614", edgecolor="#302833")
-        ax = fig.add_subplot(111)
-
-        # 背景
-        ax.set_facecolor("#180614")
-        # 軸ラベルの設定
-        ax.set_xlabel("x", fontsize=16)
-        ax.set_ylabel("y", fontsize=16)
-
-        # 軸範囲の設定
-        m_x, m_y = (
-            df["x"].min() - 20,
-            df["y"].min() - 20,
-        )
-        M_x, M_y = df["x"].max() + 20, df["y"].max() + 20
-        ax.set_xlim(m_x, M_x)
-        ax.set_ylim(m_y, M_y)
-
-        # x軸とy軸
-        ax.invert_yaxis()
-        ax.axis("off")
-
-        # ベクトル
-        X = df.loc[:, "x"]
-        Y = df.loc[:, "y"]
-        F_X = df.loc[:, "f_x"]
-        F_Y = df.loc[:, "f_y"]
-        M = df.loc[:"m"]
-        ax.quiver(
-            X,
-            Y,
-            F_X,
-            F_Y,
-            M,
-            angles="xy",
-            scale_units="xy",
-            scale=scale,
-            cmap="hot",
-            alpha=0.8,
-        )
-        plt.show()
-        if save_img:
-            name = name + ".png" if name is not None else "img.png"
-            fig.savefig(name, facecolor="#180614", edgecolor="#180614")
+        super().draw(scale=scale, save_img=save_img, name=name)
 
