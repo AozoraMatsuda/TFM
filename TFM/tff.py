@@ -112,6 +112,7 @@ class TFF(Vectors):
 
     @staticmethod
     def _get_Wavefunction_in_FS(num: int, D: int) -> np.array:
+        # return wave function in fourier space
         ls = (
             (2 * np.pi)
             / (D * num)

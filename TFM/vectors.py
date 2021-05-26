@@ -13,13 +13,13 @@ class Vectors(pd.DataFrame):
         fig = plt.figure(figsize=(50, 50), facecolor="#180614", edgecolor="#302833")
         ax = fig.add_subplot(111)
 
-        # 背景
+        # background
         ax.set_facecolor("#180614")
-        # 軸ラベルの設定
+        # axis label
         ax.set_xlabel("x", fontsize=16)
         ax.set_ylabel("y", fontsize=16)
 
-        # 軸範囲の設定
+        # range of axis
         m_x, m_y = df["x"].min() - 20, df["y"].min() - 20
         M_x, M_y = df["x"].max() + 20, df["y"].max() + 20
 
@@ -29,16 +29,18 @@ class Vectors(pd.DataFrame):
         ax.set_xlim(m_x, M_x)
         ax.set_ylim(m_y, M_y)
 
-        # x軸とy軸
+        # setting axis
         ax.invert_yaxis()
         ax.axis("off")
 
-        # ベクトル
+        # vectors settings
         X = df.iloc[:, 0]
         Y = df.iloc[:, 1]
         F_X = df.iloc[:, 2]
         F_Y = df.iloc[:, 3]
         M = df.iloc[:, 4]
+
+        # auto scale
         scale = (
             max(F_X.abs().max() / (0.05 * width), F_Y.abs().max() / (0.05 * height))
             if scale is None
