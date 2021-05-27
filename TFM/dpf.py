@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import cv2
 from TFM import Vectors
 
 
@@ -18,6 +19,52 @@ class DPF(Vectors):
             data, columns=["x", "y", "d_x", "d_y", "m"], dtype=np.float64
         ).dropna()
         return DPF(df)
+
+    @classmethod
+    def PIV(cls, path: str, wsize: int = 32, overlap: int = 16, pixel: float = 0.090):
+        for path1, path2 in zip(path[:-1], path[1:]):
+            img1 = cv2.imread(path1, 0)
+            img2 = cv2.imread(path2, 0)
+            coordinates = []
+            h1, w1 = img1.shape
+            h2, w2 = img2.shape
+
+            if h1 != h2 or w1 != w2:
+                assert ValueError("Align image size")
+
+            w_st = int(w1 / (wsize - overlap))
+            h_st = int(h1 / (wsize - overlap))
+
+            for i in range(h_st - 1):
+                for j in range(w_st - 1):
+                    p_h1 = i * (wsize - overlap)
+                    p_h2 = p_h1 + wsize
+                    p_w1 = j * (wsize - overlap)
+                    p_w2 = p_w1 + wsize
+
+                    template = img1[p_h1:p_h2, p_w1:p_w2]
+
+                    method = cv2.TM_CCOEFF_NORMED
+                    res = cv2.matchTemplate(img2, template, method)
+                    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+
+                    before_w = p_w1 + (p_w2 - p_w1) / 2
+                    before_h = p_h1 + (p_h2 - p_h1) / 2
+
+                    after_w = max_loc[0] + wsize / 2
+                    after_h = max_loc[1] + wsize / 2
+                    # print(before_w,before_h, after_w,after_h)
+
+                    dx = (after_w - before_w) * pixel
+                    dy = (after_h - before_h) * pixel
+
+                    coordinates.append([before_w, before_h, dx, dy])
+
+            df = pd.DataFrame(coordinates)
+            df.columns = ["x", "y", "d_x", "d_y"]
+            df["m"] = (df["d_x"] ** 2 + df["d_y"] ** 2).pow(1 / 2)
+            df = DPF(df)
+            return df
 
     def get_Dimensions(self) -> list:
         """
