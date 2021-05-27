@@ -16,9 +16,9 @@ class DPF(Vectors):
         data = file.read()
         data = [s.split()[:5] for s in data.split("\n")]
         df = pd.DataFrame(
-            data, columns=["x", "y", "d_x", "d_y", "m"], dtype=np.float64
+            data, columns=["x", "y", "vx", "vy", "m"], dtype=np.float64
         ).dropna()
-        return DPF(df)
+        return DPF(df).confirm()
 
     @classmethod
     def PIV(cls, path: str, wsize: int = 32, overlap: int = 16, pixel: float = 0.090):
@@ -61,9 +61,9 @@ class DPF(Vectors):
                     coordinates.append([before_w, before_h, dx, dy])
 
             df = pd.DataFrame(coordinates)
-            df.columns = ["x", "y", "d_x", "d_y"]
-            df["m"] = (df["d_x"] ** 2 + df["d_y"] ** 2).pow(1 / 2)
-            df = DPF(df)
+            df.columns = ["x", "y", "vx", "vy"]
+            df["m"] = (df["vx"] ** 2 + df["vy"] ** 2).pow(1 / 2)
+            df = DPF(df).confirm()
             return df
 
     def get_Dimensions(self) -> list:
@@ -77,6 +77,9 @@ class DPF(Vectors):
         dim[0] = self.iloc[:, 0].nunique()
         dim[1] = self.iloc[:, 1].nunique()
         return dim
+
+    def confirm(self):
+        return DPF(super().confirm())
 
     def rearrange_by_coordinate(self, target: str) -> pd.DataFrame:
         return super().rearrange_by_coordinate(target)

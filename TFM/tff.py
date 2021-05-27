@@ -16,9 +16,9 @@ class TFF(Vectors):
         data = file.read()
         data = [s.split() for s in data.split("\n")]
         df = pd.DataFrame(
-            data, columns=["x", "y", "f_x", "f_y", "m"], dtype=np.float64
+            data, columns=["x", "y", "vx", "vy", "m"], dtype=np.float64
         ).dropna()
-        return TFF(df)
+        return TFF(df).confirm()
 
     @classmethod
     def FFTC(
@@ -33,9 +33,9 @@ class TFF(Vectors):
         dim = disXY.get_Dimensions()
 
         # get disformation and coordinate
-        disX = disXY.rearrange_by_coordinate("d_x")
+        disX = disXY.rearrange_by_coordinate("vx")
         disX *= pixel
-        disY = disXY.rearrange_by_coordinate("d_y")
+        disY = disXY.rearrange_by_coordinate("vy")
         disY *= pixel
         gridX = disXY.loc[:, "x"]
         gridY = disXY.loc[:, "y"]
@@ -103,12 +103,12 @@ class TFF(Vectors):
             {
                 "x": gridX,
                 "y": gridY,
-                "f_x": TractionXR,
-                "f_y": TractionYR,
+                "vx": TractionXR,
+                "vy": TractionYR,
                 "m": magnitude,
             }
         )
-        return TFF(df)
+        return TFF(df).confirm()
 
     @staticmethod
     def _get_Wavefunction_in_FS(num: int, D: int) -> np.array:
@@ -124,6 +124,9 @@ class TFF(Vectors):
             )
         )
         return ls
+
+    def confirm(self):
+        return TFF(super().confirm())
 
     def rearrange_by_coordinate(self, target: str) -> pd.DataFrame:
         return super().rearrange_by_coordinate(target)

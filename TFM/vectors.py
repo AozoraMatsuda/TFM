@@ -4,6 +4,11 @@ import pandas as pd
 
 
 class Vectors(pd.DataFrame):
+    def confirm(self):
+        df = self.copy()
+        df.columns = ["x", "y", "vx", "vy", "m"]
+        return df.sort_values(["y", "x"])
+
     def rearrange_by_coordinate(self, target: str) -> pd.DataFrame:
         data = self.loc[:, ["x", "y", target]]
         return data.set_index(["y", "x"]).iloc[:, 0].unstack()
