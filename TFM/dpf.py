@@ -21,7 +21,7 @@ class DPF(Vectors):
         return DPF(df).confirm()
 
     @classmethod
-    def PIV(cls, path: str, wsize: int = 32, overlap: int = 16, pixel: float = 0.090):
+    def PIV(cls, path: str, winS: int = 32, vecS:int = 3, overlap: int = 16, pixel: float = 0.090):
         for path1, path2 in zip(path[:-1], path[1:]):
             img1 = cv2.imread(path1, 0)
             img2 = cv2.imread(path2, 0)
@@ -31,16 +31,27 @@ class DPF(Vectors):
 
             if h1 != h2 or w1 != w2:
                 assert ValueError("Align image size")
+            height, width = h1, w1
+            dx0, dy0, dx1, dy1, dx2, dy2 = 0, 0, 0, 0, 0, 0
+            mag0, mag1, mag2 = 0, 0, 0
+            edge = True
+            firstPass = True
+            shiftX, shiftY = 0, 0
+            border = winS/4
+            invCount, thrCount = 0, 0
+            bkResult = False
+            dxdy = np.zeros(6, dtype=np.float64)
+            dxdyG = np.zeros(2, dtype=np.float64)
+            dxdyG2 = np.zeros(2, dtype=np.float64)
+            nx = int((width - (border*2)-winS)/vecS)
+            ny = int((height - (border*2)-winS)/vecS)
 
-            w_st = int(w1 / (wsize - overlap))
-            h_st = int(h1 / (wsize - overlap))
-
-            for i in range(h_st - 1):
-                for j in range(w_st - 1):
-                    p_h1 = i * (wsize - overlap)
-                    p_h2 = p_h1 + wsize
-                    p_w1 = j * (wsize - overlap)
-                    p_w2 = p_w1 + wsize
+            for i in range(ny - 1):
+                for j in range(nx - 1):
+                    p_h1 = i * (winS - overlap)
+                    p_h2 = p_h1 + winS
+                    p_w1 = j * (winS - overlap)
+                    p_w2 = p_w1 + winS
 
                     template = img1[p_h1:p_h2, p_w1:p_w2]
 
@@ -51,8 +62,8 @@ class DPF(Vectors):
                     before_w = p_w1 + (p_w2 - p_w1) / 2
                     before_h = p_h1 + (p_h2 - p_h1) / 2
 
-                    after_w = max_loc[0] + wsize / 2
-                    after_h = max_loc[1] + wsize / 2
+                    after_w = max_loc[0] + winS / 2
+                    after_h = max_loc[1] + winS / 2
                     # print(before_w,before_h, after_w,after_h)
 
                     dx = (after_w - before_w) * pixel
