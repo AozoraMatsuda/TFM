@@ -1,7 +1,11 @@
 from os import stat
+from types import DynamicClassAttribute
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from pykalman import KalmanFilter
+
 from TFM import DPF, Vectors
 
 
@@ -63,23 +67,20 @@ class TFF(Vectors):
         G = np.zeros([2, 2], dtype=np.complex)
         TractionXF = np.zeros([nRow, nCol], dtype=np.complex)
         TractionYF = np.zeros([nRow, nCol], dtype=np.complex)
-        for j in range(len(Ky)):
-            for i in range(len(Kx)):
-                if i == nCol // 2 + 1 or j == nRow // 2 + 1:
-                    flag = True
-                else:
-                    flag = False
-                G = cls._calc_Green(Kx[i], Ky[j], flag, mu, E)
+        for i in range(len(Ky)):
+            for j in range(len(Kx)):
+                flag = cls._is_edge(j, i, nCol, nRow)
+                G = cls._calc_Green(Kx[j], Ky[i], flag, mu, E)
                 Gt = G.T
                 G1 = Gt @ G
                 G1 += H
                 Ginv = np.linalg.inv(G1)
 
-                dd = np.array([disXCF[j, i], disYCF[j, i]])
+                dd = np.array([disXCF[i, j], disYCF[i, j]])
                 GtU = Gt @ dd
                 TXY = Ginv @ GtU
-                TractionXF[j, i] = TXY[0]
-                TractionYF[j, i] = TXY[1]
+                TractionXF[i, j] = TXY[0]
+                TractionYF[i, j] = TXY[1]
         TractionXF[0, 0] = 0
         TractionYF[0, 0] = 0
 
@@ -135,6 +136,32 @@ class TFF(Vectors):
             )
         )
         return ls
+
+    @staticmethod
+    def _is_edge(x: int, y: int, nCol: int, nRow: int):
+        if x == nCol // 2 + 1 or y == nRow // 2 + 1:
+            return True
+        return False
+
+    @staticmethod
+    def _FGHSet(
+        nCol: int, nRow: int, D: float, mu: float = 0.5, E: float = 5000, L: float = 0
+    ):
+        Kx = TFF._get_Wavefunction_in_FS(nCol, D)
+        Ky = TFF._get_Wavefunction_in_FS(nRow, D)
+        H = np.zeros([2 * nCol * nRow, 2 * nCol * nRow], dtype=np.complex)
+        I = np.identity(2, dtype=np.complex) * L * L
+        for i in range(nRow):
+            for j in range(nCol):
+                o = (i * nCol + j) * 2
+                flag = TFF._is_edge(j, i, nCol, nRow)
+                G = TFF._calc_Green(Kx[j], Ky[i], flag, mu, E)
+                # Gtinv = np.linalg.inv(G.T)
+                # G1 = G.T @ G + H
+                H[o : o + 2, o : o + 2] = G
+        F = np.identity(2 * nCol * nRow)
+        G = np.ones(2 * nCol * nRow)
+        return F, G, H
 
     def confirm(self):
         return TFF(super().confirm())
