@@ -112,21 +112,26 @@ class TFF(Vectors):
         E: float = 5000,
         L: float = 0,
     ) -> "TFF":
+        # use the first data as initial state
         if initial_dpf is None:
             initial_dpf = data[0]
             data = data[1:]
         nCol, nRow, dPixel = initial_dpf.get_Dimensions()
         D = dPixel * pixel
 
+        # convert raw data to process kalman-filter in fourier space
         train = TFF._get_train_data(data)
-        initial_tff = TFF.FFTC(initial_dpf)
 
+        initial_tff = TFF.FFTC(initial_dpf)
         tffXCF = TFF._fft_for_vectors(initial_tff, "vx").stack()
         tffYCF = TFF._fft_for_vectors(initial_tff, "vy").stack()
         tffXR, tffXI = TFF._convert_complex_to_vectors(tffXCF)
         tffYR, tffYI = TFF._convert_complex_to_vectors(tffYCF)
         initial_state_vectors = pd.concat([tffXR, tffYR, tffXI, tffYI]).sort_index()
 
+        # set obervation matrix
+        # beta_(t+1) ~ beta_t
+        # the vectors should be arranged by (xi_real, yi_real, xi_imag, yi_imag)
         H = TFF._set_observation_matrix(nCol, nRow, D, mu=mu, E=E, L=L)
 
         kf = KalmanFilter(
@@ -141,6 +146,7 @@ class TFF(Vectors):
         )
         smoothed_state_means, smoothed_state_covs = kf.smooth(train)
 
+        # reconstruct traction force filed from complex matrix
         res_XR = smoothed_state_means[-1, ::4]
         res_YR = smoothed_state_means[-1, 1::4]
         res_XI = smoothed_state_means[-1, 2::4]

@@ -34,7 +34,9 @@ class DPF(Vectors):
         correlation: float = 0.60,
         save_path: str = None,
     ) -> list:
+        print("START LOADIND FIJI....")
         ij = imagej.init("/Applications/Fiji.app")
+        print("DONE!")
         cnt = 1
         res = []
         for path1, path2 in zip(path[:-1], path[1:]):
