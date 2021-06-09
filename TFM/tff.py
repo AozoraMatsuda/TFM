@@ -4,6 +4,7 @@ from types import DynamicClassAttribute
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from pandas.core.arrays.sparse import dtype
 from pykalman import KalmanFilter
 
 from TFM import DPF, Vectors
@@ -127,7 +128,9 @@ class TFF(Vectors):
         tffYCF = TFF._fft_for_vectors(initial_tff, "vy").stack()
         tffXR, tffXI = TFF._convert_complex_to_vectors(tffXCF)
         tffYR, tffYI = TFF._convert_complex_to_vectors(tffYCF)
-        initial_state_vectors = pd.concat([tffXR, tffYR, tffXI, tffYI]).sort_index()
+        initial_state_vectors = (
+            pd.concat([tffXR, tffYR, tffXI, tffYI]).sort_index().astype("float64")
+        )
 
         # set obervation matrix
         # beta_(t+1) ~ beta_t
@@ -144,7 +147,15 @@ class TFF(Vectors):
             observation_covariance=np.identity(initial_state_vectors.shape[0]),
             transition_covariance=np.identity(initial_state_vectors.shape[0]),
         )
-        smoothed_state_means, smoothed_state_covs = kf.smooth(train)
+        emed_kf = kf.em(
+            train,
+            em_vars=[
+                "initial_state_covariance",
+                "observation_covariance",
+                "transition_covariance",
+            ],
+        )
+        smoothed_state_means, smoothed_state_covs = emed_kf.smooth(train)
 
         # reconstruct traction force filed from complex matrix
         res_XR = smoothed_state_means[-1, ::4]
@@ -218,8 +229,7 @@ class TFF(Vectors):
     ):
         Kx = TFF._get_Wavefunction_in_FS(nCol, D)
         Ky = TFF._get_Wavefunction_in_FS(nRow, D)
-        H = np.zeros([4 * nCol * nRow, 4 * nCol * nRow], dtype=np.complex)
-        I = np.identity(2, dtype=np.complex) * L * L
+        H = np.zeros([4 * nCol * nRow, 4 * nCol * nRow], dtype=np.float64)
         for i in range(nRow):
             for j in range(nCol):
                 o = (i * nCol + j) * 4
@@ -227,7 +237,7 @@ class TFF(Vectors):
                 G = TFF._calc_Green(Kx[j], Ky[i], flag, mu, E)
                 H[o : o + 2, o : o + 2] = G
                 H[o + 2 : o + 4, o + 2 : o + 4] = G
-        H[0:4, 0:4] = np.zeros([4, 4], dtype=np.complex)
+        H[0:4, 0:4] = np.zeros([4, 4], dtype=np.float64)
         return H
 
     @staticmethod
@@ -238,7 +248,9 @@ class TFF(Vectors):
             disXR, disXI = TFF._convert_complex_to_vectors(disXCF)
             disYCF = TFF._fft_for_vectors(df, "vy").stack()
             disYR, disYI = TFF._convert_complex_to_vectors(disYCF)
-            obsCF = pd.concat([disXR, disYR, disXI, disYI]).sort_index()
+            obsCF = (
+                pd.concat([disXR, disYR, disXI, disYI]).sort_index().astype("float64")
+            )
             res.append(obsCF.values)
         return res
 
