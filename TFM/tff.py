@@ -91,7 +91,6 @@ class TFF(Vectors):
         TractionXR = TractionXF.real.flatten()
         TractionYR = TractionYF.real.flatten()
         magnitude = np.sqrt(TractionXR ** 2 + TractionYR ** 2)
-
         df = pd.DataFrame(
             {
                 "x": gridX,
@@ -102,6 +101,70 @@ class TFF(Vectors):
             }
         )
         return TFF(df).confirm()
+
+    @classmethod
+    def kalman_FFTC(
+        cls,
+        data: list,
+        initial_dpf: "DPF" = None,
+        pixel: float = 0.090,
+        mu: float = 0.5,
+        E: float = 5000,
+        L: float = 0,
+    ) -> "TFF":
+        if initial_dpf is None:
+            initial_dpf = data[0]
+            data = data[1:]
+        nCol, nRow, dPixel = initial_dpf.get_Dimensions()
+        D = dPixel * pixel
+
+        train = TFF._get_train_data(data)
+        initial_tff = TFF.FFTC(initial_dpf)
+
+        tffXCF = TFF._fft_for_vectors(initial_tff, "vx").stack()
+        tffYCF = TFF._fft_for_vectors(initial_tff, "vy").stack()
+        tffXR, tffXI = TFF._convert_complex_to_vectors(tffXCF)
+        tffYR, tffYI = TFF._convert_complex_to_vectors(tffYCF)
+        initial_state_vectors = pd.concat([tffXR, tffYR, tffXI, tffYI]).sort_index()
+
+        H = TFF._set_observation_matrix(nCol, nRow, D, mu=mu, E=E, L=L)
+
+        kf = KalmanFilter(
+            n_dim_obs=initial_state_vectors.shape[0],
+            n_dim_state=initial_state_vectors.shape[0],
+            initial_state_mean=initial_state_vectors.values,
+            initial_state_covariance=np.identity(initial_state_vectors.shape[0]),
+            transition_matrices=np.identity(initial_state_vectors.shape[0]),
+            observation_matrices=H,
+            observation_covariance=np.identity(initial_state_vectors.shape[0]),
+            transition_covariance=np.identity(initial_state_vectors.shape[0]),
+        )
+        smoothed_state_means, smoothed_state_covs = kf.smooth(train)
+
+        res_XR = smoothed_state_means[-1, ::4]
+        res_YR = smoothed_state_means[-1, 1::4]
+        res_XI = smoothed_state_means[-1, 2::4]
+        res_YI = smoothed_state_means[-1, 3::4]
+        resXCF = res_XR + 1j * res_XI
+        resYCF = res_YR + 1j * res_YI
+        res_XCF = pd.DataFrame(resXCF, index=tffXCF.index)
+        res_YCF = pd.DataFrame(resYCF, index=tffYCF.index)
+
+        res_TractionXF = np.fft.ifft2(res_XCF.unstack().values)
+        res_TractionYF = np.fft.ifft2(res_YCF.unstack().values)
+        res_TractionXR = res_TractionXF.real.flatten()
+        res_TractionYR = res_TractionYF.real.flatten()
+        res_magnitude = np.sqrt(res_TractionXR ** 2 + res_TractionYR ** 2)
+        res = pd.DataFrame(
+            {
+                "x": initial_tff.loc[:, "x"],
+                "y": initial_tff.loc[:, "y"],
+                "vx": res_TractionXR,
+                "vy": res_TractionYR,
+                "m": res_magnitude,
+            }
+        )
+        return TFF(res).confirm()
 
     @staticmethod
     def _calc_Green(
@@ -131,7 +194,7 @@ class TFF(Vectors):
             * np.hstack(
                 [
                     np.arange(0, num // 2 + 1, 1),
-                    (-1) * np.arange(np.round(num / 2) - 1, 0, -1),
+                    (-1) * np.arange(np.round(num / 2 + 0.1) - 1, 0, -1),
                 ]
             )
         )
@@ -144,24 +207,45 @@ class TFF(Vectors):
         return False
 
     @staticmethod
-    def _FGHSet(
+    def _set_observation_matrix(
         nCol: int, nRow: int, D: float, mu: float = 0.5, E: float = 5000, L: float = 0
     ):
         Kx = TFF._get_Wavefunction_in_FS(nCol, D)
         Ky = TFF._get_Wavefunction_in_FS(nRow, D)
-        H = np.zeros([2 * nCol * nRow, 2 * nCol * nRow], dtype=np.complex)
+        H = np.zeros([4 * nCol * nRow, 4 * nCol * nRow], dtype=np.complex)
         I = np.identity(2, dtype=np.complex) * L * L
         for i in range(nRow):
             for j in range(nCol):
-                o = (i * nCol + j) * 2
+                o = (i * nCol + j) * 4
                 flag = TFF._is_edge(j, i, nCol, nRow)
                 G = TFF._calc_Green(Kx[j], Ky[i], flag, mu, E)
-                # Gtinv = np.linalg.inv(G.T)
-                # G1 = G.T @ G + H
                 H[o : o + 2, o : o + 2] = G
-        F = np.identity(2 * nCol * nRow)
-        G = np.ones(2 * nCol * nRow)
-        return F, G, H
+                H[o + 2 : o + 4, o + 2 : o + 4] = G
+        H[0:4, 0:4] = np.zeros([4, 4], dtype=np.complex)
+        return H
+
+    @staticmethod
+    def _get_train_data(ls: list):
+        res = []
+        for df in ls:
+            disXCF = TFF._fft_for_vectors(df, "vx").stack()
+            disXR, disXI = TFF._convert_complex_to_vectors(disXCF)
+            disYCF = TFF._fft_for_vectors(df, "vy").stack()
+            disYR, disYI = TFF._convert_complex_to_vectors(disYCF)
+            obsCF = pd.concat([disXR, disYR, disXI, disYI]).sort_index()
+            res.append(obsCF.values)
+        return res
+
+    @staticmethod
+    def _convert_complex_to_vectors(df: pd.DataFrame):
+        R = df.apply(lambda x: x.real)
+        I = df.apply(lambda x: x.imag)
+        return R, I
+
+    @staticmethod
+    def _fft_for_vectors(df: pd.DataFrame, target: str):
+        Vec = df.rearrange_by_coordinate(target)
+        return pd.DataFrame(np.fft.fft2(Vec))
 
     def confirm(self):
         return TFF(super().confirm())
