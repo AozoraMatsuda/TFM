@@ -26,6 +26,32 @@ class TFF(Vectors):
         return TFF(df).confirm()
 
     @classmethod
+    def generate_dpf(
+        cls, nCol: int, nRow: int, size: int, mode: str = "cGL", info: dict = None
+    ):
+        dx = info["dx"]
+        Wx = np.random.normal(0, 1, (nCol, nRow))
+        Wy = np.random.normal(0, 1, (nCol, nRow))
+        X, Y = np.meshgrid(
+            np.arange(0, nCol * dx, dx), np.arange(0, nRow * dx, dx)
+        )  # メッシュ生成
+        res = []
+        for _ in range(size):
+            Wx, Wy = cls._update(Wx=Wx, Wy=Wy, mode=mode, info=info)
+
+            df = TFF(
+                {
+                    "x": X.flatten(),
+                    "y": Y.flatten(),
+                    "vx": Wx.flatten(),
+                    "vy": Wy.flatten(),
+                    "m": np.sqrt(Wx ** 2 + Wy ** 2).flatten(),
+                }
+            )
+            res.append(df)
+        return res
+
+    @classmethod
     def FFTC(
         cls,
         disXY: "DPF",
@@ -201,6 +227,52 @@ class TFF(Vectors):
         G[1, 1] = (1 - mu) * (k * k) + mu * (kx * kx)
         G *= G0
         return G
+
+    @staticmethod
+    def _calc_Laplacian(Tv: np.ndarray):
+        lap = np.zeros(Tv.shape)
+        lap[1:-1, 1:-1] = (
+            -4 * Tv[1:-1, 1:-1]
+            + Tv[:-2, 1:-1]
+            + Tv[2:, 1:-1]
+            + Tv[1:-1, :-2]
+            + Tv[1:-1, 2:]
+        )
+        lap[0, 0] = -2 * Tv[0, 0] + Tv[0, 1] + Tv[1, 0]
+        lap[0, -1] = -2 * Tv[0, -1] + Tv[0, -2] + Tv[1, -1]
+        lap[-1, 0] = -2 * Tv[-1, 0] + Tv[-2, 0] + Tv[-1, 1]
+        lap[-1, -1] = -2 * Tv[-1, -1] + Tv[-1, -2] + Tv[-2, -1]
+        lap[1:-1, 0] = -3 * Tv[1:-1, 0] + Tv[:-2, 0] + Tv[2:, 0] + Tv[1:-1, 1]
+        lap[1:-1, -1] = -3 * Tv[1:-1, -1] + Tv[:-2, -1] + Tv[2:, -1] + Tv[1:-1, -2]
+        lap[0, 1:-1] = -3 * Tv[0, 1:-1] + Tv[0, :-2] + Tv[0, 2:] + Tv[1, 1:-1]
+        lap[-1, 1:-1] = -3 * Tv[-1, 1:-1] + Tv[-1, :-2] + Tv[-1, 2:] + Tv[-2, 1:-1]
+        return lap
+
+    @staticmethod
+    def _update(
+        Wx: np.ndarray,
+        Wy: np.ndarray,
+        mode: str = None,
+        info: dict = None,
+        noise_flag: int = 1,
+    ):
+        nCol, nRow = Wx.shape
+        # Euler法によるcGL方程式
+        if mode == "cGL":
+            a = info["a"]
+            b = info["b"]
+            dx = info["dx"]
+            dt = info["dt"]
+            D = 2.0 / dx / dx
+            ni = np.sqrt(0.4 * dt)
+            lapx = TFF._calc_Laplacian(Wx)  # Laplacian of Tx
+            lapy = TFF._calc_Laplacian(Wy)  # Laplacian of Ty
+            W2 = Wx * Wx + Wy * Wy  # |T|^2
+            kWx = Wx - W2 * (Wx - b * Wy) + D * (lapx - a * lapy)
+            kWy = Wy - W2 * (b * Wx + Wy) + D * (a * lapx + lapy)
+            Wx = Wx + dt * kWx + np.random.normal(0, ni, (nCol, nRow)) * noise_flag
+            Wy = Wy + dt * kWy + np.random.normal(0, ni, (nCol, nRow)) * noise_flag
+        return Wx, Wy
 
     @staticmethod
     def _get_Wavefunction_in_FS(num: int, D: int) -> np.array:
