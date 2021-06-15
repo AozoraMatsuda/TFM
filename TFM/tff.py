@@ -30,10 +30,10 @@ class TFF(Vectors):
         cls, nCol: int, nRow: int, size: int, mode: str = "cGL", info: dict = None
     ):
         dx = info["dx"]
-        Wx = np.random.normal(0, 1, (nCol, nRow))
-        Wy = np.random.normal(0, 1, (nCol, nRow))
+        Wx = np.random.normal(0, 1, (nCol, nRow))[8::16, 8::16]
+        Wy = np.random.normal(0, 1, (nCol, nRow))[8::16, 8::16]
         X, Y = np.meshgrid(
-            np.arange(0, nCol * dx, dx), np.arange(0, nRow * dx, dx)
+            np.arange(8, nCol * dx, 16), np.arange(8, nRow * dx, 16)
         )  # メッシュ生成
         res = []
         for _ in range(size):
@@ -179,31 +179,34 @@ class TFF(Vectors):
         )
         smoothed_state_means, smoothed_state_covs = emed_kf.smooth(train)
 
-        # reconstruct traction force filed from complex matrix
-        res_XR = smoothed_state_means[-1, ::4]
-        res_YR = smoothed_state_means[-1, 1::4]
-        res_XI = smoothed_state_means[-1, 2::4]
-        res_YI = smoothed_state_means[-1, 3::4]
-        resXCF = res_XR + 1j * res_XI
-        resYCF = res_YR + 1j * res_YI
-        res_XCF = pd.DataFrame(resXCF, index=tffXCF.index)
-        res_YCF = pd.DataFrame(resYCF, index=tffYCF.index)
+        # reconstruct traction force filed from czomplex matrix
+        result = []
+        for i in range(len(smoothed_state_means)):
+            res_XR = smoothed_state_means[i, ::4]
+            res_YR = smoothed_state_means[i, 1::4]
+            res_XI = smoothed_state_means[i, 2::4]
+            res_YI = smoothed_state_means[i, 3::4]
+            resXCF = res_XR + 1j * res_XI
+            resYCF = res_YR + 1j * res_YI
+            res_XCF = pd.DataFrame(resXCF, index=tffXCF.index)
+            res_YCF = pd.DataFrame(resYCF, index=tffYCF.index)
 
-        res_TractionXF = np.fft.ifft2(res_XCF.unstack().values)
-        res_TractionYF = np.fft.ifft2(res_YCF.unstack().values)
-        res_TractionXR = res_TractionXF.real.flatten()
-        res_TractionYR = res_TractionYF.real.flatten()
-        res_magnitude = np.sqrt(res_TractionXR ** 2 + res_TractionYR ** 2)
-        res = pd.DataFrame(
-            {
-                "x": initial_tff.loc[:, "x"],
-                "y": initial_tff.loc[:, "y"],
-                "vx": res_TractionXR,
-                "vy": res_TractionYR,
-                "m": res_magnitude,
-            }
-        )
-        return TFF(res).confirm()
+            res_TractionXF = np.fft.ifft2(res_XCF.unstack().values)
+            res_TractionYF = np.fft.ifft2(res_YCF.unstack().values)
+            res_TractionXR = res_TractionXF.real.flatten()
+            res_TractionYR = res_TractionYF.real.flatten()
+            res_magnitude = np.sqrt(res_TractionXR ** 2 + res_TractionYR ** 2)
+            res = TFF(
+                {
+                    "x": initial_tff.loc[:, "x"],
+                    "y": initial_tff.loc[:, "y"],
+                    "vx": res_TractionXR,
+                    "vy": res_TractionYR,
+                    "m": res_magnitude,
+                }
+            ).confirm()
+            result.append(res)
+        return result
 
     def convert_to_dpf(
         self, pixel: float = 0.090, mu: float = 0.5, E: float = 5000, L: float = 0,
