@@ -36,6 +36,7 @@ class TFF(Vectors):
             nRow (int): the number of y points
             size (int): the number of TFF objects
             mode (str, optional): the way how to synthesize traction force field. Defaults to "cGL".
+                cGL : https://codeinthehole.com/tutorial/index.html
             info (dict, optional): the parameters for each mode. Defaults to None.
 
         Returns:
@@ -113,6 +114,9 @@ class TFF(Vectors):
         Ky = cls._get_Wavefunction_in_FS(nRow, D)
 
         # calculate convolution
+
+        # H is the regularization
+        # G is Green function
         H = np.identity(2, dtype=np.complex) * L * L
         G = np.zeros([2, 2], dtype=np.complex)
         TractionXF = np.zeros([nRow, nCol], dtype=np.complex)
@@ -186,8 +190,12 @@ class TFF(Vectors):
         initial_tff = TFF.FFTC(initial_dpf)
         tffXCF = TFF._fft_for_vectors(initial_tff, "vx").stack()
         tffYCF = TFF._fft_for_vectors(initial_tff, "vy").stack()
+
+        # split complex data to real part and imaginary part
         tffXR, tffXI = TFF._convert_complex_to_vectors(tffXCF)
         tffYR, tffYI = TFF._convert_complex_to_vectors(tffYCF)
+
+        # sort by xi_real, yi_real, xi_imag, yi_imag
         initial_state_vectors = (
             pd.concat([tffXR, tffYR, tffXI, tffYI]).sort_index().astype("float64")
         )
@@ -258,6 +266,7 @@ class TFF(Vectors):
         gridX = self.loc[:, "x"]
         gridY = self.loc[:, "y"]
 
+        # the shape of _fft_for_vectors is 2D, so change to 1D
         tffXCF = self._fft_for_vectors(self, "vx").stack()
         tffYCF = self._fft_for_vectors(self, "vy").stack()
 
@@ -343,7 +352,7 @@ class TFF(Vectors):
     ):
         nRow, nCol = Wx.shape
         # Euler法によるcGL方程式
-        # https://codeinthehole.com/tutorial/index.html
+
         if mode == "cGL":
             a = info["a"]
             b = info["b"]
