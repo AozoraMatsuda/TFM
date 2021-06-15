@@ -297,8 +297,8 @@ class TFF(Vectors):
         disXF = np.fft.ifft2(disXCF)
         disYF = np.fft.ifft2(disYCF)
 
-        disXR = disXF.real.flatten() / D
-        disYR = disYF.real.flatten() / D
+        disXR = disXF.real.flatten() / pixel
+        disYR = disYF.real.flatten() / pixel
         magnitude = np.sqrt(disXR ** 2 + disYR ** 2)
         df = DPF({"x": gridX, "y": gridY, "vx": disXR, "vy": disYR, "m": magnitude,})
         return df.confirm()
