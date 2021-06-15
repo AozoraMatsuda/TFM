@@ -4,6 +4,18 @@ import pandas as pd
 
 
 class Vectors(pd.DataFrame):
+    def get_Dimensions(self) -> list:
+        """
+        dim[0] the number of points in x axis
+        dim[1] the number of points in y axis
+        dim[2] distance between points (pixel)
+        """
+        dim = [0] * 3
+        dim[2] = self.iloc[1, 0] - self.iloc[0, 0]
+        dim[0] = self.iloc[:, 0].nunique()
+        dim[1] = self.iloc[:, 1].nunique()
+        return dim
+
     def confirm(self):
         df = self.copy()
         df.columns = ["x", "y", "vx", "vy", "m"]

@@ -54,16 +54,7 @@ run("iterative PIV(Basic)...", f"{piv1}=32 {sw1}=64 {piv2}=16 {sw2}=32 {piv3}=8 
         return res
 
     def get_Dimensions(self) -> list:
-        """
-        dim[0] the number of points in x axis
-        dim[1] the number of points in y axis
-        dim[2] distance between points (pixel)
-        """
-        dim = [0] * 3
-        dim[2] = self.iloc[1, 0] - self.iloc[0, 0]
-        dim[0] = self.iloc[:, 0].nunique()
-        dim[1] = self.iloc[:, 1].nunique()
-        return dim
+        return super().get_Dimensions()
 
     def confirm(self):
         return DPF(super().confirm())

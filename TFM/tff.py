@@ -26,7 +26,7 @@ class TFF(Vectors):
         return TFF(df).confirm()
 
     @classmethod
-    def generate_dpf(
+    def generate_tff(
         cls, nCol: int, nRow: int, size: int, mode: str = "cGL", info: dict = None
     ):
         dx = info["dx"]
@@ -209,6 +209,13 @@ class TFF(Vectors):
         )
         return TFF(res).confirm()
 
+    def convert_to_dpf(
+        self, pixel: float = 0.090, mu: float = 0.5, E: float = 5000, L: float = 0,
+    ) -> "DPF":
+        tffXCF = self._fft_for_vectors(self, "vx").stack()
+        tffYCF = self._fft_for_vectors(self, "vy").stack()
+        nRow, nCol = self.shape
+
     @staticmethod
     def _calc_Green(
         kx: float, ky: float, is_edge: bool, mu: float = 0.5, E: float = 5000,
@@ -256,7 +263,7 @@ class TFF(Vectors):
         info: dict = None,
         noise_flag: int = 1,
     ):
-        nCol, nRow = Wx.shape
+        nRow, nCol = Wx.shape
         # Euler法によるcGL方程式
         if mode == "cGL":
             a = info["a"]
@@ -336,6 +343,9 @@ class TFF(Vectors):
     def _fft_for_vectors(df: pd.DataFrame, target: str):
         Vec = df.rearrange_by_coordinate(target)
         return pd.DataFrame(np.fft.fft2(Vec))
+
+    def get_Dimensions(self) -> list:
+        return super().get_Dimensions()
 
     def confirm(self):
         return TFF(super().confirm())
