@@ -71,13 +71,9 @@ class TFF(Vectors):
         gridX = disXY.loc[:, "x"]
         gridY = disXY.loc[:, "y"]
 
-        # real distance between points
-        dPixel = dim[2]
-        D = dPixel * pixel
-
         # get shape info
-        nCol = disX.shape[1]
-        nRow = disX.shape[0]
+        nCol, nRow, dPixel = dim
+        D = dPixel * pixel
 
         # FFT
         disXCF = np.fft.fft2(disX)
@@ -212,9 +208,44 @@ class TFF(Vectors):
     def convert_to_dpf(
         self, pixel: float = 0.090, mu: float = 0.5, E: float = 5000, L: float = 0,
     ) -> "DPF":
+        gridX = self.loc[:, "x"]
+        gridY = self.loc[:, "y"]
+
         tffXCF = self._fft_for_vectors(self, "vx").stack()
         tffYCF = self._fft_for_vectors(self, "vy").stack()
-        nRow, nCol = self.shape
+
+        nCol, nRow, dPixel = self.get_Dimensions()
+        D = dPixel * pixel
+
+        # wave function in fourier space
+        Kx = self._get_Wavefunction_in_FS(nCol, D)
+        Ky = self._get_Wavefunction_in_FS(nRow, D)
+
+        G = np.zeros([2, 2], dtype=np.complex)
+        disXCF = np.zeros([nRow, nCol], dtype=np.complex)
+        disYCF = np.zeros([nRow, nCol], dtype=np.complex)
+
+        for i in range(len(Ky)):
+            for j in range(len(Kx)):
+                flag = self._is_edge(j, i, nCol, nRow)
+                G = self._calc_Green(Kx[j], Ky[i], flag, mu, E)
+                dd = np.array([tffXCF[i, j], tffYCF[i, j]])
+                TXY = G @ dd
+                disXCF[i, j] = TXY[0]
+                disYCF[i, j] = TXY[1]
+
+        disXCF[0, 0] = 0
+        disYCF[0, 0] = 0
+
+        # invert fft
+        disXF = np.fft.ifft2(disXCF)
+        disYF = np.fft.ifft2(disYCF)
+
+        disXR = disXF.real.flatten() / D
+        disYR = disYF.real.flatten() / D
+        magnitude = np.sqrt(disXR ** 2 + disYR ** 2)
+        df = DPF({"x": gridX, "y": gridY, "vx": disXR, "vy": disYR, "m": magnitude,})
+        return df.confirm()
 
     @staticmethod
     def _calc_Green(
@@ -351,6 +382,7 @@ class TFF(Vectors):
         return TFF(super().confirm())
 
     def rearrange_by_coordinate(self, target: str) -> pd.DataFrame:
+        # return the target data in 2D (x is column and y is row)
         return super().rearrange_by_coordinate(target)
 
     def draw(self, scale: int = None, save_img: bool = False, name: str = None):

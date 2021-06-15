@@ -60,6 +60,7 @@ run("iterative PIV(Basic)...", f"{piv1}=32 {sw1}=64 {piv2}=16 {sw2}=32 {piv3}=8 
         return DPF(super().confirm())
 
     def rearrange_by_coordinate(self, target: str) -> pd.DataFrame:
+        # return the target data in 2D (x is column and y is row)
         return super().rearrange_by_coordinate(target)
 
     def draw(self, scale: int = None, save_img: bool = False, name: str = None):
