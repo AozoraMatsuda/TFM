@@ -260,7 +260,13 @@ class TFF(Vectors):
         return result
 
     def convert_to_dpf(
-        self, pixel: float = 0.090, mu: float = 0.5, E: float = 5000, L: float = 0,
+        self,
+        pixel: float = 0.090,
+        mu: float = 0.5,
+        E: float = 5000,
+        L: float = 0,
+        noise_flag: bool = True,
+        noise_ratio: float = 0.1,
     ) -> "DPF":
         """
         Convert traction force field to displacement field by inverting FFTC
@@ -306,6 +312,13 @@ class TFF(Vectors):
         disYR = disYF.real.flatten() / pixel
         magnitude = np.sqrt(disXR ** 2 + disYR ** 2)
         df = DPF({"x": gridX, "y": gridY, "vx": disXR, "vy": disYR, "m": magnitude,})
+
+        if noise_flag:
+            nCol, nRow, _ = df.get_Dimensions()
+            mx = df.loc[:, "vx"].abs().mean() * noise_ratio
+            my = df.loc[:, "vy"].abs().mean() * noise_ratio
+            df.loc[:, "vx"] += np.random.normal(0, mx, nCol * nRow)
+            df.loc[:, "vy"] += np.random.normal(0, my, nCol * nRow)
         return df.confirm()
 
     @staticmethod
