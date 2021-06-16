@@ -1,6 +1,7 @@
 from os import stat
 from types import DynamicClassAttribute
 
+import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -177,6 +178,7 @@ class TFF(Vectors):
         Returns:
             list[TFF]: Estimated traction force fields
         """
+        logging.info("Kalman smoother for T_(t+1) ~ T_t")
         # use the first data as initial state
         if initial_dpf is None:
             initial_dpf = data[0]
@@ -185,7 +187,8 @@ class TFF(Vectors):
         D = dPixel * pixel
 
         # convert raw data to process kalman-filter in fourier space
-        train = TFF._get_train_data(data)
+        logging.info("Get train data")
+        train = TFF._get_train_data(data, pixel)
 
         initial_tff = TFF.FFTC(initial_dpf)
         tffXCF = TFF._fft_for_vectors(initial_tff, "vx").stack()
@@ -203,6 +206,7 @@ class TFF(Vectors):
         # set obervation matrix
         # beta_(t+1) ~ beta_t
         # the vectors should be arranged by (xi_real, yi_real, xi_imag, yi_imag)
+        logging.info("Get observation matrix")
         H = TFF._set_observation_matrix(nCol, nRow, D, mu=mu, E=E, L=L)
 
         kf = KalmanFilter(
@@ -215,15 +219,16 @@ class TFF(Vectors):
             observation_covariance=np.identity(initial_state_vectors.shape[0]),
             transition_covariance=np.identity(initial_state_vectors.shape[0]),
         )
-        emed_kf = kf.em(
-            train,
-            em_vars=[
-                "initial_state_covariance",
-                "observation_covariance",
-                "transition_covariance",
-            ],
-        )
+        em_vars = [
+            "initial_state_covariance",
+            "observation_covariance",
+            "transition_covariance",
+        ]
+        logging.info(f"EM-algorithm for {em_vars}")
+        emed_kf = kf.em(train, em_vars=em_vars,)
+        logging.info("Start kalman-smoother")
         smoothed_state_means, smoothed_state_covs = emed_kf.smooth(train)
+        logging.info("Done")
 
         # reconstruct traction force filed from czomplex matrix
         result = []
@@ -408,9 +413,11 @@ class TFF(Vectors):
         return H
 
     @staticmethod
-    def _get_train_data(ls: list):
+    def _get_train_data(ls: list, pixel: float):
         res = []
         for df in ls:
+            df.loc[:, "vx"] *= pixel
+            df.loc[:, "vy"] *= pixel
             disXCF = TFF._fft_for_vectors(df, "vx").stack()
             disXR, disXI = TFF._convert_complex_to_vectors(disXCF)
             disYCF = TFF._fft_for_vectors(df, "vy").stack()
