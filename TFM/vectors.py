@@ -27,9 +27,15 @@ class Vectors(pd.DataFrame):
         data = self.loc[:, ["x", "y", target]]
         return data.set_index(["y", "x"]).iloc[:, 0].unstack()
 
-    def draw(self, scale: int = None, save_img: bool = False, name: str = None):
+    def draw(
+        self,
+        figsize: tuple = (5, 5),
+        scale: int = None,
+        save_img: bool = False,
+        name: str = None,
+    ):
         df = self.copy()
-        fig = plt.figure(figsize=(50, 50), facecolor="#180614", edgecolor="#302833")
+        fig = plt.figure(figsize=figsize, facecolor="#180614", edgecolor="#302833")
         ax = fig.add_subplot(111)
 
         # background
