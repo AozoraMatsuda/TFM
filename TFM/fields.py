@@ -1,24 +1,23 @@
+import logging
 from os import stat
 from types import DynamicClassAttribute
 
-import logging
+import imagej
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy.fft.pocketfft import fft
 import pandas as pd
+from numpy.fft.pocketfft import fft
 from pandas.core.arrays.sparse import dtype
 from pykalman import KalmanFilter
 
 from TFM import Vectors
 from TFM.utils import (
-    get_Wavefunction_in_FS,
     calc_Green,
-    is_edge,
-    fft_for_vectors,
     convert_complex_to_vectors,
+    fft_for_vectors,
+    get_Wavefunction_in_FS,
+    is_edge,
 )
-
-import imagej
 
 
 class DPF(Vectors):
