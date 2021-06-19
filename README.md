@@ -1,5 +1,5 @@
 # Traction Force Microscopy
-This is a python libarary for traction force microscopy
+This is a python libarary for traction force microscopy. **pykalman and pyimagej is needed.**
 ## Vector field class
 - Vectors is the parent class of DPF and TFF
 - DPF is a class for DisPlacement Field.
