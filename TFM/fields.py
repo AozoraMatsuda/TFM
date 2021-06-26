@@ -132,8 +132,14 @@ class DPF(Vectors):
         # return the target data in 2D (x is column and y is row)
         return super().rearrange_by_coordinate(target)
 
-    def draw(self, scale: int = None, save_img: bool = False, name: str = None):
-        super().draw(scale=scale, save_img=save_img, name=name)
+    def draw(
+        self,
+        figsize: tuple = (5, 5),
+        scale: int = None,
+        save_img: bool = False,
+        name: str = None,
+    ):
+        super().draw(figsize=figsize, scale=scale, save_img=save_img, name=name)
 
 
 class TFF(Vectors):
@@ -367,6 +373,12 @@ class TFF(Vectors):
         # return the target data in 2D (x is column and y is row)
         return super().rearrange_by_coordinate(target)
 
-    def draw(self, scale: int = None, save_img: bool = False, name: str = None):
-        super().draw(scale=scale, save_img=save_img, name=name)
+    def draw(
+        self,
+        figsize: tuple = (5, 5),
+        scale: int = None,
+        save_img: bool = False,
+        name: str = None,
+    ):
+        super().draw(figsize=figsize, scale=scale, save_img=save_img, name=name)
 
