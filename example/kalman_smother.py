@@ -9,6 +9,7 @@ from pandas.util.testing import assert_frame_equal
 from TFM import DPF, TFF
 from sklearn.metrics import r2_score
 
+np.random.seed(0)
 # %%
 # %%
 # 　元となるTFFのリストを生成
@@ -20,10 +21,11 @@ data = TFF.generate_fields(
     info={"a": 0.5, "b": 0.1, "dx": 1, "dt": 0.001},
 )
 # %%
+
 #%%
 # 　ノイズの追加
 data_noise = []
-noise = 0.0
+noise = 1.0
 for df in data:
     ndf = df.copy()
     nCol, nRow, _ = df.get_Dimensions()
@@ -76,11 +78,6 @@ for i in range(200):
         plt.show()
 
 # %%
-# %%
-plt.hist([k_r2_y, f_r2_y], bins=10, label=["KS-FFTC", "FFTC"])
-plt.legend()
-plt.savefig(f"r2_y_{noise}.png")
-plt.show()
 # %%
 plt.plot(k_r2_x)
 plt.savefig(f"k2_x_{noise}.png")
