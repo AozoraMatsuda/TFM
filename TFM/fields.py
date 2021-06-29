@@ -351,7 +351,7 @@ class TFF(Vectors):
     def _get_train_data(ls: list, pixel: float):
         res = []
         for pdf in ls:
-            df = pdf.copy()
+            df = TFF(pdf.copy())
             df.loc[:, "vx"] *= pixel
             df.loc[:, "vy"] *= pixel
             disXCF = pd.DataFrame(fft_for_vectors(df, "vx")).stack()
