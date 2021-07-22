@@ -1,17 +1,21 @@
 #%%
+import pickle
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from numpy.core.numeric import identity
 from numpy.lib.npyio import save
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
 from pandas.util.testing import assert_frame_equal
-from TFM import DPF, TFF
 from pykalman import KalmanFilter
+from sklearn.metrics import r2_score
+
+from TFM import DPF, TFF
 
 # %%
-path_A = "../PIV/PIV_A001_stack.txt"
+path_A = "./example/PIV_A001_stack.txt"
 piv_A001 = DPF.load_DPF(path_A)
-path_B = "../PIV/PIV_B001_stack.txt"
+path_B = "./example/PIV_B001_stack.txt"
 piv_B001 = DPF.load_DPF(path_B)
 
 # %%
@@ -21,14 +25,14 @@ piv_B001.draw()
 #%%
 res_A = piv_A001.fftc()
 res_A.draw()
-expected_A = TFF.load_TFF(path="../traction_force/Traction_PIV_A001_stack_L_0.txt")
+expected_A = TFF.load_TFF(path="./example/Traction_PIV_A001_stack_L_0.txt")
 expected_A.draw()
 assert_frame_equal(res_A, expected_A)
 
 #%%
 res_B = piv_B001.fftc()
 res_B.draw()
-expected_B = TFF.load_TFF(path="../traction_force/Traction_PIV_B001_stack.txt")
+expected_B = TFF.load_TFF(path="./example/Traction_PIV_B001_stack.txt")
 expected_B.draw()
 assert_frame_equal(res_B, expected_B)
 
@@ -44,13 +48,7 @@ path = ["~/Desktop/TFM/Aall/A001a.tif", "~/Desktop/TFM/Aall/A001b.tif"]
 df = DPF.PIV(path, save_path="~/Desktop")
 path_B = "../PIV/PIV_B001_stack.txt"
 piv_B001 = DPF.load_DPF(path_B)
-# %%
-import imagej
 
-# %%
-ij = imagej.init()
-# %%
-ij = imagej.init("sc.fiji:fiji")
 # %%
 ls = ["./img1.png", "./img2.png"]
 for s in ls:
@@ -62,9 +60,10 @@ res = TFF.kalman_FFTC(ls)
 #%%
 initial_tff.draw()
 res.draw()
+import matplotlib.pyplot as plt
+
 # %%
 import numpy as np
-import matplotlib.pyplot as plt
 
 nCol = 200  # meshsize_x
 nRow = 200  # meshsize_y
@@ -225,7 +224,7 @@ for t in range(TIMESTEP):
 # %%
 info = {"a": 0.5, "b": 0.1, "dx": 1, "dt": 0.01}
 # %%
-data = TFF.generate_fields(
+sym_data = TFF.generate_fields(
     nCol=200,
     nRow=200,
     size=200,
@@ -234,7 +233,7 @@ data = TFF.generate_fields(
 )
 #%%
 data_noise = []
-for df in data:
+for df in sym_data:
     ndf = df.copy()
     nCol, nRow, _ = df.get_Dimensions()
     mx = df.loc[:, "vx"].abs().mean() * 0.05
@@ -243,24 +242,33 @@ for df in data:
     ndf.loc[:, "vy"] += np.random.normal(0, my, nCol * nRow)
     data_noise.append(ndf)
 #%%
-train = [x.inv_fftc(noise_flag=False) for x in data]
-train_noise = [x.inv_fftc(noise_ratio=0.05) for x in data_noise]
+sym_train = [x.inv_fftc(noise_flag=False) for x in sym_data]
+# train_noise = [x.inv_fftc(noise_ratio=0.05) for x in data_noise]
 #%%
-result = TFF.kalman_FFTC(data=train[:101])
+result_est = TFF.kalman_FFTC(data=sym_train[:100], use_em=True, mode=1)
+
+
 #%%
-for i in range(100):
+with open("tfm.tff", "rb") as fl:
+    tff = pickle.load(fl)
+
+for i in range(200):
     if i % 20 == 0:
-        data[i + 1].draw()
-        result[i].draw(save_img=True, name=str(i) + "_no_noise")
+        sym_data[i + 1].draw()
+        result_est[i].draw()
+        print("###################")
 
 #%%
 train = [x.convert_to_dpf(noise_flag=False) for x in data]
 #%%
+
 result = TFF.kalman_FFTC(data=train[:101])
 #%%
 for i in range(100):
     if i % 20 == 0:
-        result[i].draw(save_img=True, name=str(i) + "_result_no_noise")
+        result[i].draw()
+        sym_data[i].draw()
+
 # %%
 rel_error_0 = (
     result[0].loc[:, ["vx", "vy"]] - data[1].loc[:, ["vx", "vy"]]
@@ -272,3 +280,133 @@ rel_error_99 = (
     result[99].loc[:, ["vx", "vy"]] - data[100].loc[:, ["vx", "vy"]]
 ).abs() / data[100].loc[:, ["vx", "vy"]].abs()
 
+#%%
+with open("piv.dpf", "rb") as fl:
+    data = pickle.load(fl)
+train = []
+for i in range(len(data)):
+    df = data[i]
+    mask = (1400 < df["x"]) & (1400 < df["y"]) & (df["x"] < 1500) & (df["y"] < 1500)
+    train.append(DPF(df[mask].copy()))
+# %%
+T = 10
+train_exd = []
+for i in range(len(train) - 1):
+    df0, df1 = train[i], train[i + 1]
+    train_exd.append(DPF(df0.copy()))
+    for i in range(1, T):
+        df = df0.copy()
+        df["vx"] = df0["vx"] * (1 - i / T) + df1["vx"] * (i / T)
+        df["vy"] = df0["vy"] * (1 - i / T) + df1["vy"] * (i / T)
+        df["m"] = (df["vx"].pow(2) + df["vy"].pow(2)).pow(1 / 2)
+        train_exd.append(DPF(df.copy()))
+    train_exd.append(DPF(df1))
+#%%
+result_est = TFF.kalman_FFTC(
+    data=train, use_em=True, mu=0.5, E=15000.0, pixel=6.4e-7, mode=1
+)
+
+#%%
+with open("tfm.tff", "rb") as fl:
+    tff = pickle.load(fl)
+
+for i in range(200):
+
+    if i % 20 == 0:
+        df = tff[i]
+        mask = (1400 < df["x"]) & (1400 < df["y"]) & (df["x"] < 1460) & (df["y"] < 1460)
+        df[mask].draw()
+        # train[i].fftc(mu=0.5, E=15000, pixel=6.4E-7,L=8.0E-11).draw()
+        result_est[i].draw()
+        print("#######")
+# %%
+sym_data = TFF.generate_fields(
+    nCol=100,
+    nRow=100,
+    size=2000,
+    mode="cGL",
+    info={"a": 0.5, "b": 0.1, "dx": 1, "dt": 0.01},
+)
+#%%
+ratio = 0.2
+data_noise = []
+for df in sym_data:
+    ndf = df.copy()
+    nCol, nRow, _ = df.get_Dimensions()
+    mx = df.loc[:, "vx"].abs().mean() * ratio
+    my = df.loc[:, "vy"].abs().mean() * ratio
+    ndf.loc[:, "vx"] += np.random.normal(0, mx, nCol * nRow)
+    ndf.loc[:, "vy"] += np.random.normal(0, my, nCol * nRow)
+    data_noise.append(ndf)
+#%%
+# sym_train = [x.inv_fftc(noise_flag=False) for x in sym_data]
+train_noise = [x.inv_fftc(noise_ratio=ratio) for x in data_noise]
+#%%
+with open("sym0.data", "rb") as fl:
+    sym_data = pickle.load(fl)
+
+with open("train0.data", "rb") as fl:
+    train_noise = pickle.load(fl)
+#%%
+result_d0 = TFF.kalman_FFTC(data=train_noise[0:1000:10], use_em=True, mode=0)
+#%%
+result_d1 = TFF.kalman_FFTC(data=train_noise[0:1000:10], use_em=True, mode=1)
+
+#%%
+for i in range(100):
+    if i % 20 == 0:
+        print("#################")
+        sym_data[i].draw()
+        result_d0[i].draw()
+        result_d1[i].draw()
+# %%
+sym_data = TFF.generate_fields(
+    nCol=100,
+    nRow=100,
+    size=200,
+    mode="cGL",
+    info={"a": 0.5, "b": 0.1, "dx": 1, "dt": 0.01},
+)
+# %%
+train = train_noise[::10]
+T = 10
+train_exd = [train[0]]
+for i in range(len(train) - 1):
+    df0, df1 = train[i], train[i + 1]
+    for i in range(1, T):
+        df = df0.copy()
+        df["vx"] = df0["vx"] * (1 - i / T) + df1["vx"] * (i / T)
+        df["vy"] = df0["vy"] * (1 - i / T) + df1["vy"] * (i / T)
+        df["m"] = (df["vx"].pow(2) + df["vy"].pow(2)).pow(1 / 2)
+        train_exd.append(DPF(df.copy()))
+    train_exd.append(DPF(df1))
+# %%
+for i in range(200):
+    if i % 20 == 0:
+        train_noise[i].draw()
+        train_exd[i].draw()
+# %%
+exd_0 = []
+norm_exd_0 = []
+exd_1 = []
+norm_exd_1 = []
+for i in range(98):
+    exd_0.append(
+        r2_score(
+            sym_data[10 * (i)].loc[:, ["vx", "vy"]].values,
+            result_d0[i].loc[:, ["vx", "vy"]].values,
+        )
+    )
+    df = (sym_data[i + 1] - result_d0[i]).loc[:, ["vx", "vy"]]
+    m = np.sqrt((df["vx"].pow(2) + df["vy"].pow(2)).sum())
+    norm_exd_0.append(m)
+    exd_1.append(
+        r2_score(
+            sym_data[10 * (i)].loc[:, ["vx", "vy"]].values,
+            result_d1[i].loc[:, ["vx", "vy"]].values,
+        )
+    )
+    df = (sym_data[i + 1] - result_d1[i]).loc[:, ["vx", "vy"]]
+    m = np.sqrt((df["vx"].pow(2) + df["vy"].pow(2)).sum())
+    norm_exd_1.append(m)
+# %%
