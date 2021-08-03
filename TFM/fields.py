@@ -301,7 +301,7 @@ class TFF(Vectors):
         logging.info("Kalman smoother for T_(t+1) ~ T_t")
         initial_dpf0 = data[0]
         initial_dpf1 = data[1]
-        data = data[2:]
+        data = data[1:]
         nCol, nRow, dPixel = initial_dpf0.get_Dimensions()
         D = dPixel * pixel
 
