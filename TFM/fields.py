@@ -5,7 +5,8 @@ from types import DynamicClassAttribute
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from pykalman import KalmanFilter
+from simdkalman import KalmanFilter
+
 
 from TFM import Vectors
 from TFM.utils import (
@@ -42,11 +43,7 @@ class DPF(Vectors):
         ]
 
     def fftc(
-        self,
-        pixel: float = 0.090,
-        mu: float = 0.5,
-        E: float = 5000,
-        L: float = 0,
+        self, pixel: float = 0.090, mu: float = 0.5, E: float = 5000, L: float = 0,
     ) -> "TFF":
         """
         Estimate traction force field from displacement field by Fourier transform traction cytometry (FFTC)
@@ -233,34 +230,21 @@ class TFF(Vectors):
         F = cls._set_transition_matrix(initial_state_vectors.shape[0], mode=0)
 
         kf = KalmanFilter(
-            n_dim_obs=initial_state_vectors.shape[0],
-            n_dim_state=initial_state_vectors.shape[0],
-            initial_state_mean=initial_state_vectors.values,
-            initial_state_covariance=np.identity(initial_state_vectors.shape[0]),
-            transition_matrices=F,
-            observation_matrices=H,
-            observation_covariance=np.identity(initial_state_vectors.shape[0]),
-            transition_covariance=np.identity(initial_state_vectors.shape[0]),
+            state_transition=F,
+            observation_model=H,
+            observation_noise=np.identity(initial_state_vectors.shape[0]),
+            process_noise=np.identity(initial_state_vectors.shape[0]),
         )
-        if use_em:
-            em_vars = [
-                "initial_state_covariance",
-                "observation_covariance",
-                "transition_covariance",
-            ]
-            logging.info(f"EM-algorithm for {em_vars}")
-            emed_kf = kf.em(
-                train,
-                em_vars=em_vars,
-            )
-            kf = emed_kf
+
         logging.info("Start kalman-smoother")
-        smoothed_state_means, smoothed_state_covs = kf.smooth(train)
+        # kf_em = kf.em(train)
+        smoothed = kf.smooth(train, initial_value=initial_state_vectors)
         logging.info("Done")
 
+        smoothed_state_means = smoothed.observations.mean[0, :, :]
         # reconstruct traction force filed from complex matrix
         result = []
-        for i in range(len(smoothed_state_means)):
+        for i in range(smoothed_state_means.shape[0]):
             res_XR = smoothed_state_means[i, ::4]
             res_YR = smoothed_state_means[i, 1::4]
             res_XI = smoothed_state_means[i, 2::4]
@@ -314,7 +298,7 @@ class TFF(Vectors):
         # because of using differential, state vectors hold two vectors in time t and t-1
         initial_state_vectors1, tff_index = cls._get_initial_state_vector(initial_dpf0)
         initial_state_vectors2, _ = cls._get_initial_state_vector(initial_dpf1)
-        initial_state_vectors = pd.concat(
+        initial_state_vectors = np.concatenate(
             [initial_state_vectors1, initial_state_vectors2]
         )
 
@@ -327,29 +311,14 @@ class TFF(Vectors):
         print(H.shape)
         print(F.shape)
         kf = KalmanFilter(
-            n_dim_obs=initial_state_vectors.shape[0],
-            n_dim_state=initial_state_vectors.shape[0],
-            initial_state_mean=initial_state_vectors.values,
-            initial_state_covariance=np.identity(initial_state_vectors.shape[0]),
-            transition_matrices=F,
-            observation_matrices=H,
-            observation_covariance=np.identity(initial_state_vectors.shape[0]),
-            transition_covariance=np.identity(initial_state_vectors.shape[0]),
+            state_transition=F,
+            observation_model=H,
+            observation_noise=np.identity(initial_state_vectors.shape[0]),
+            process_noise=np.identity(initial_state_vectors.shape[0]),
         )
-        if use_em:
-            em_vars = [
-                "initial_state_covariance",
-                "observation_covariance",
-                "transition_covariance",
-            ]
-            logging.info(f"EM-algorithm for {em_vars}")
-            emed_kf = kf.em(
-                train,
-                em_vars=em_vars,
-            )
-            kf = emed_kf
-        logging.info("Start kalman-smoother")
-        smoothed_state_means, smoothed_state_covs = kf.smooth(train)
+        # kf_em = kf.em(train)
+        smoothed = kf.smooth(train, initial_value=initial_state_vectors)
+        smoothed_state_means = smoothed.observations.mean[0, :, :]
         logging.info("Done")
 
         # reconstruct traction force filed from complex matrix
@@ -433,15 +402,7 @@ class TFF(Vectors):
         disXR = disXF.real.flatten() / pixel
         disYR = disYF.real.flatten() / pixel
         magnitude = np.sqrt(disXR ** 2 + disYR ** 2)
-        df = DPF(
-            {
-                "x": gridX,
-                "y": gridY,
-                "vx": disXR,
-                "vy": disYR,
-                "m": magnitude,
-            }
-        )
+        df = DPF({"x": gridX, "y": gridY, "vx": disXR, "vy": disYR, "m": magnitude,})
 
         if noise_flag:
             nCol, nRow, _ = df.get_Dimensions()
@@ -510,7 +471,9 @@ class TFF(Vectors):
                 v = np.concatenate([res[i], res[i + 1]])
                 res_.append(v)
             res = res_
-        return res
+        res = np.array(res)
+        l, s = res.shape
+        return res.reshape(1, l, s)
 
     @staticmethod
     def _get_initial_state_vector(initial_dpf: "DPF"):
@@ -526,7 +489,7 @@ class TFF(Vectors):
         initial_state_vectors = (
             pd.concat([tffXR, tffYR, tffXI, tffYI]).sort_index().astype("float64")
         )
-        return initial_state_vectors, tffXCF.index
+        return initial_state_vectors.values, tffXCF.index
 
     def get_Dimensions(self) -> list:
         return super().get_Dimensions()
