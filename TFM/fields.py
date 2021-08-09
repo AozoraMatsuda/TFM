@@ -237,7 +237,8 @@ class TFF(Vectors):
         )
 
         logging.info("Start kalman-smoother")
-        # kf_em = kf.em(train)
+        if use_em:
+            kf = kf.em(train)
         smoothed = kf.smooth(train, initial_value=initial_state_vectors)
         logging.info("Done")
 
@@ -472,8 +473,7 @@ class TFF(Vectors):
                 res_.append(v)
             res = res_
         res = np.array(res)
-        l, s = res.shape
-        return res.reshape(1, l, s)
+        return res[np.newaxis, :, :]
 
     @staticmethod
     def _get_initial_state_vector(initial_dpf: "DPF"):
