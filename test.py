@@ -1,6 +1,7 @@
 #%%
 import pickle
 
+import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -9,8 +10,8 @@ from numpy.lib.npyio import save
 from pandas.util.testing import assert_frame_equal
 from pykalman import KalmanFilter
 from sklearn.metrics import r2_score
-
-from TFM import DPF, TFF
+from scipy.sparse import csr_matrix
+from TFM import DPF, TFF, SparseKalman
 
 # %%
 path_A = "./example/PIV_A001_stack.txt"
@@ -85,36 +86,6 @@ b = 0.1
 D = 2.0 / dx / dx
 
 
-def Laplacian(lap, Tv):
-    lap[1:-1, 1:-1] = (
-        -4 * Tv[1:-1, 1:-1]
-        + Tv[:-2, 1:-1]
-        + Tv[2:, 1:-1]
-        + Tv[1:-1, :-2]
-        + Tv[1:-1, 2:]
-    )
-    lap[0, 0] = -2 * Tv[0, 0] + Tv[0, 1] + Tv[1, 0]
-    lap[0, -1] = -2 * Tv[0, -1] + Tv[0, -2] + Tv[1, -1]
-    lap[-1, 0] = -2 * Tv[-1, 0] + Tv[-2, 0] + Tv[-1, 1]
-    lap[-1, -1] = -2 * Tv[-1, -1] + Tv[-1, -2] + Tv[-2, -1]
-    lap[1:-1, 0] = -3 * Tv[1:-1, 0] + Tv[:-2, 0] + Tv[2:, 0] + Tv[1:-1, 1]
-    lap[1:-1, -1] = -3 * Tv[1:-1, -1] + Tv[:-2, -1] + Tv[2:, -1] + Tv[1:-1, -2]
-    lap[0, 1:-1] = -3 * Tv[0, 1:-1] + Tv[0, :-2] + Tv[0, 2:] + Tv[1, 1:-1]
-    lap[-1, 1:-1] = -3 * Tv[-1, 1:-1] + Tv[-1, :-2] + Tv[-1, 2:] + Tv[-2, 1:-1]
-
-
-def update(Wx, Wy, mode: str = None):
-    # Euler法によるcGL方程式の
-    if mode == "cGL":
-        _calc_Laplacian(lapx, Wx)  # Laplacian of Tx
-        _calc_Laplacian(lapy, Wy)  # Laplacian of Ty
-        W2[:] = Wx[:] * Wx[:] + Wy[:] * Wy[:]  # |T|^2
-        kWx[:] = Wx[:] - W2[:] * (Wx[:] - b * Wy[:]) + D * (lapx[:] - a * lapy[:])
-        kWy[:] = Wy[:] - W2[:] * (b * Wx[:] + Wy[:]) + D * (a * lapx[:] + lapy[:])
-        Wx[:, :] = Wx[:, :] + dt * kWx[:, :] + np.random.normal(0, ni, (nCol, nRow))
-        Wy[:, :] = Wy[:, :] + dt * kWy[:, :] + np.random.normal(0, ni, (nCol, nRow))
-
-
 Wx[:] = np.random.normal(0, 1, (nCol, nRow))
 Wy[:] = np.random.normal(0, 1, (nCol, nRow))
 
@@ -125,99 +96,6 @@ plt.ylim([0, nRow * dx])  # 描くyの範囲
 X, Y = np.meshgrid(np.arange(0, nCol * dx, dx), np.arange(0, nRow * dx, dx))  # メッシュ生成
 S = 4  ##  表示のためのメッシュ間隔
 OUTSTEP = 500  ## step毎に表示
-
-
-for t in range(TIMESTEP):
-    update(Wx, Wy)
-
-    if t % OUTSTEP == 0:
-        # plt.imshow(Tx)
-        plt.clf()
-        plt.title("t= %.2lf" % (t * dt,))
-        plt.imshow(Wx)
-        plt.quiver(
-            X[::S, ::S],
-            Y[::S, ::S],
-            Wx[::S, ::S],
-            Wy[::S, ::S],
-            color="red",
-            angles="xy",
-            scale_units="xy",
-            scale=0.2,
-        )
-        # plt.quiver(X[::S,::S],Y[::S,::S],-Wy[::S,::S],Wx[::S,::S],color='red',angles='xy',scale_units='xy', scale=.2)
-        plt.pause(1)
-    # %%
-    def _update(
-        Wx: np.ndarray,
-        Wy: np.ndarray,
-        mode: str = None,
-        info: dict = None,
-        noise_flag: int = 1,
-    ):
-        nCol, nRow = Wx.shape
-        # Euler法によるcGL方程式の
-        if mode == "cGL":
-            a = info["a"]
-            b = info["b"]
-            dx = info["dx"]
-            dt = info["dt"]
-            D = 2.0 / dx / dx
-            ni = np.sqrt(0.4 * dt)
-            lapx = _calc_Laplacian(Wx)  # Laplacian of Tx
-            lapy = _calc_Laplacian(Wy)  # Laplacian of Ty
-            W2 = Wx * Wx + Wy * Wy  # |T|^2
-            kWx = Wx - W2 * (Wx - b * Wy) + D * (lapx - a * lapy)
-            kWy = Wy - W2 * (b * Wx + Wy) + D * (a * lapx + lapy)
-            Wx = Wx + dt * kWx + np.random.normal(0, ni, (nCol, nRow)) * noise_flag
-            Wy = Wy + dt * kWy + np.random.normal(0, ni, (nCol, nRow)) * noise_flag
-
-    def generate_dpf(
-        nCol: int = 200, nRow: int = 200, mode: str = "cGL", info: dict = None
-    ):
-        if mode == "cGL":
-            dx = info["dx"]
-            dt = info["dt"]
-            TIMESTEP = 1000
-        Wx = np.random.normal(0, 1, (nCol, nRow))
-        Wy = np.random.normal(0, 1, (nCol, nRow))
-        X, Y = np.meshgrid(
-            np.arange(0, nCol * dx, dx), np.arange(0, nRow * dx, dx)
-        )  # メッシュ生成
-        res = []
-        for t in range(TIMESTEP):
-            _update(Wx=Wx, Wy=Wy, mode="cGL", info=info)
-
-            df = TFF(
-                {
-                    "x": X.flatten(),
-                    "y": Y.flatten(),
-                    "vx": Wx.flatten(),
-                    "vy": Wy.flatten(),
-                    "m": np.sqrt(Wx ** 2 + Wy ** 2).flatten(),
-                }
-            )
-            res.append(df)
-        return res
-
-    def _calc_Laplacian(Tv: np.ndarray):
-        lap = np.zeros(Tv.shape)
-        lap[1:-1, 1:-1] = (
-            -4 * Tv[1:-1, 1:-1]
-            + Tv[:-2, 1:-1]
-            + Tv[2:, 1:-1]
-            + Tv[1:-1, :-2]
-            + Tv[1:-1, 2:]
-        )
-        lap[0, 0] = -2 * Tv[0, 0] + Tv[0, 1] + Tv[1, 0]
-        lap[0, -1] = -2 * Tv[0, -1] + Tv[0, -2] + Tv[1, -1]
-        lap[-1, 0] = -2 * Tv[-1, 0] + Tv[-2, 0] + Tv[-1, 1]
-        lap[-1, -1] = -2 * Tv[-1, -1] + Tv[-1, -2] + Tv[-2, -1]
-        lap[1:-1, 0] = -3 * Tv[1:-1, 0] + Tv[:-2, 0] + Tv[2:, 0] + Tv[1:-1, 1]
-        lap[1:-1, -1] = -3 * Tv[1:-1, -1] + Tv[:-2, -1] + Tv[2:, -1] + Tv[1:-1, -2]
-        lap[0, 1:-1] = -3 * Tv[0, 1:-1] + Tv[0, :-2] + Tv[0, 2:] + Tv[1, 1:-1]
-        lap[-1, 1:-1] = -3 * Tv[-1, 1:-1] + Tv[-1, :-2] + Tv[-1, 2:] + Tv[-2, 1:-1]
-        return lap
 
 
 # %%da
@@ -245,7 +123,7 @@ for df in sym_data:
 sym_train = [x.inv_fftc(noise_flag=False) for x in sym_data]
 # train_noise = [x.inv_fftc(noise_ratio=0.05) for x in data_noise]
 #%%
-result_est = TFF.kalman_FFTC(data=sym_train[:100], use_em=True, mode=1)
+result_est = TFF.kalman_FFTC(data=sym_train[:100], use_em=False, mode=0)
 
 
 #%%
@@ -269,16 +147,6 @@ for i in range(100):
         result[i].draw()
         sym_data[i].draw()
 
-# %%
-rel_error_0 = (
-    result[0].loc[:, ["vx", "vy"]] - data[1].loc[:, ["vx", "vy"]]
-).abs() / data[1].loc[:, ["vx", "vy"]].abs()
-rel_error_50 = (
-    result[50].loc[:, ["vx", "vy"]] - data[51].loc[:, ["vx", "vy"]]
-).abs() / data[51].loc[:, ["vx", "vy"]].abs()
-rel_error_99 = (
-    result[99].loc[:, ["vx", "vy"]] - data[100].loc[:, ["vx", "vy"]]
-).abs() / data[100].loc[:, ["vx", "vy"]].abs()
 
 #%%
 with open("piv.dpf", "rb") as fl:
@@ -321,14 +189,14 @@ for i in range(200):
         print("#######")
 # %%
 sym_data = TFF.generate_fields(
-    nCol=100,
-    nRow=100,
-    size=2000,
+    nCol=200,
+    nRow=200,
+    size=500,
     mode="cGL",
     info={"a": 0.5, "b": 0.1, "dx": 1, "dt": 0.01},
 )
 #%%
-ratio = 0.2
+ratio = 0
 data_noise = []
 for df in sym_data:
     ndf = df.copy()
@@ -342,71 +210,31 @@ for df in sym_data:
 # sym_train = [x.inv_fftc(noise_flag=False) for x in sym_data]
 train_noise = [x.inv_fftc(noise_ratio=ratio) for x in data_noise]
 #%%
-with open("sym0.data", "rb") as fl:
-    sym_data = pickle.load(fl)
+dic = {}
+for noise in [1e-5, 1e-2, 1, 1e2, 1e5]:
+    result_d0 = TFF.kalman_FFTC(data=train_noise[0:400], mode=1, noise=noise)
 
-with open("train0.data", "rb") as fl:
-    train_noise = pickle.load(fl)
-#%%
-result_d0 = TFF.kalman_FFTC(data=train_noise[0:1000:10], use_em=True, mode=0)
-#%%
-result_d1 = TFF.kalman_FFTC(data=train_noise[0:1000:10], use_em=True, mode=1)
+    # #%%
+    # for i in range(100):
+    #     if i % 20 == 0:
+    #         print("#################")
+    #         sym_data[i].draw()
+    #         result_d0[i].draw()
+    #         # result_d1[i].draw()
 
-#%%
-for i in range(100):
-    if i % 20 == 0:
+    exd_0 = []
+    for i in range(300):
+        exd_0.append(
+            r2_score(
+                sym_data[i].loc[:, ["vx", "vy"]].values,
+                result_d0[i].loc[:, ["vx", "vy"]].values,
+            )
+        )
+    dic[noise] = exd_0.copy()
+# %%
+for i in range(300):
+    if i % 50 == 0:
         print("#################")
         sym_data[i].draw()
-        result_d0[i].draw()
-        result_d1[i].draw()
-# %%
-sym_data = TFF.generate_fields(
-    nCol=100,
-    nRow=100,
-    size=200,
-    mode="cGL",
-    info={"a": 0.5, "b": 0.1, "dx": 1, "dt": 0.01},
-)
-# %%
-train = train_noise[::10]
-T = 10
-train_exd = [train[0]]
-for i in range(len(train) - 1):
-    df0, df1 = train[i], train[i + 1]
-    for i in range(1, T):
-        df = df0.copy()
-        df["vx"] = df0["vx"] * (1 - i / T) + df1["vx"] * (i / T)
-        df["vy"] = df0["vy"] * (1 - i / T) + df1["vy"] * (i / T)
-        df["m"] = (df["vx"].pow(2) + df["vy"].pow(2)).pow(1 / 2)
-        train_exd.append(DPF(df.copy()))
-    train_exd.append(DPF(df1))
-# %%
-for i in range(200):
-    if i % 20 == 0:
-        train_noise[i].draw()
-        train_exd[i].draw()
-# %%
-exd_0 = []
-norm_exd_0 = []
-exd_1 = []
-norm_exd_1 = []
-for i in range(98):
-    exd_0.append(
-        r2_score(
-            sym_data[10 * (i)].loc[:, ["vx", "vy"]].values,
-            result_d0[i].loc[:, ["vx", "vy"]].values,
-        )
-    )
-    df = (sym_data[i + 1] - result_d0[i]).loc[:, ["vx", "vy"]]
-    m = np.sqrt((df["vx"].pow(2) + df["vy"].pow(2)).sum())
-    norm_exd_0.append(m)
-    exd_1.append(
-        r2_score(
-            sym_data[10 * (i)].loc[:, ["vx", "vy"]].values,
-            result_d1[i].loc[:, ["vx", "vy"]].values,
-        )
-    )
-    df = (sym_data[i + 1] - result_d1[i]).loc[:, ["vx", "vy"]]
-    m = np.sqrt((df["vx"].pow(2) + df["vy"].pow(2)).sum())
-    norm_exd_1.append(m)
+        result[i].draw()
 # %%
