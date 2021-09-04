@@ -1,7 +1,7 @@
 import logging
 from os import stat
 from types import DynamicClassAttribute
-from typing import List
+from typing import List, TextIO
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -217,21 +217,21 @@ class TFF(Vectors):
         H = cls._set_observation_matrix(nCol, nRow, mode=mode, D=D, mu=mu, E=E, L=L)
         F = cls._set_transition_matrix(initial_state_vectors.shape[0], mode=mode)
 
-        L = initial_state_vectors.shape[0]
+        T = initial_state_vectors.shape[0]
 
         kf = SparseKalman(
             observation_matrix=H,
-            observation_noise=csr_matrix(np.eye(L) * noise * 1),
+            observation_noise=csr_matrix(np.eye(T) * noise * 1),
             transition_matrix=F,
-            transition_noise=csr_matrix(np.eye(L) * noise * 1),
+            transition_noise=csr_matrix(np.eye(T) * noise * 1),
         )
 
-        kf.kalman_filter(
+        kf.Filter(
             data=train,
             initial_mean=initial_state_vectors,
-            initial_covariance=csr_matrix(np.eye(L) * noise * 1),
+            initial_covariance=csr_matrix(np.eye(T) * noise * 1),
         )
-        kf.kalman_smoothing()
+        kf.Smoother()
         smoothed_state_means, _ = kf.export_smoothings()
         logging.info("Done")
         # reconstruct traction force filed from complex matrix

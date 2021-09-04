@@ -93,7 +93,7 @@ class SparseKalman:
         S = C + A * (S - R) * A.T
         return s, S
 
-    def kalman_filter(
+    def Filter(
         self,
         data: List[csr_matrix],
         initial_mean: csr_matrix,
@@ -130,7 +130,7 @@ class SparseKalman:
         self.predicted_means = predicted_means
         self.predicted_covariances = predicted_covariances
 
-    def kalman_smoothing(self):
+    def Smoother(self):
         if self.predicted_means is None or self.predicted_covariances is None:
             raise ValueError("Kalman Filtering has not done")
         T = len(self.predicted_means)
