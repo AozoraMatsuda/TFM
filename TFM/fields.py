@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from simdkalman import KalmanFilter
 
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr, csr_matrix
 from TFM import Vectors, SparseKalman
 from TFM.utils import (
     calc_Green,
@@ -173,6 +173,7 @@ class TFF(Vectors):
         cls,
         data: list,
         mode: int = 0,
+        use_em: bool = True,
         noise: float = 1e-12,
         pixel: float = 0.090,
         mu: float = 0.5,
@@ -224,15 +225,15 @@ class TFF(Vectors):
             observation_noise=csr_matrix(np.eye(T) * noise * 1),
             transition_matrix=F,
             transition_noise=csr_matrix(np.eye(T) * noise * 1),
-        )
-
-        kf.Filter(
-            data=train,
             initial_mean=initial_state_vectors,
             initial_covariance=csr_matrix(np.eye(T) * noise * 1),
         )
-        kf.Smoother()
-        smoothed_state_means, _ = kf.export_smoothings()
+        if use_em:
+            kf = kf.em(data=train)
+        kf_res = kf.Filter(data=train).Smoother()
+        kf_res.to_pickle(name="Kalman_TFF")
+
+        smoothed_state_means, _ = kf_res.export_smoothings()
         logging.info("Done")
         # reconstruct traction force filed from complex matrix
         result = []
