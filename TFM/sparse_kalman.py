@@ -184,7 +184,7 @@ class SparseKalman:
                 smoothed_covariances=mdl.smoothed_covariances,
                 pairwise_covariances=pairwise_covariances,
             )
-            # mdl.transition_matrix = params["transition matrix"]
+            mdl.transition_matrix = params["transition matrix"]
             mdl.transition_noise = params["transition noise"]
             mdl.observation_noise = params["observation noise"]
             mdl.initial_state_mean = params["initial state mean"]
@@ -340,7 +340,7 @@ class SparseKalman:
         )
 
         results["observation noise"] = observatino_noise
-        # results["transition matrix"] = transition_matrix
+        results["transition matrix"] = transition_matrix
         results["transition noise"] = transition_noise
         results["initial state mean"] = initial_state_mean
         results["initial state covariance"] = initial_state_covariance

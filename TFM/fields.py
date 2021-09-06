@@ -201,7 +201,7 @@ class TFF(Vectors):
 
         # convert raw data to process kalman-filter in fourier space
         logging.info("Get train data")
-        train = cls._get_train_data(data, pixel, mode=mode)
+        train = cls.get_train_data(data, pixel, mode=mode)
 
         # convert initial_dpf for kalman filter
         # index for rearanging the results
@@ -366,8 +366,7 @@ class TFF(Vectors):
                 )
             )
 
-    @staticmethod
-    def _get_train_data(ls: list, pixel: float, mode: int):
+    def get_train_data(self, ls: list, pixel: float, mode: int):
         res = []
         for pdf in ls:
             df = TFF(pdf.copy())
