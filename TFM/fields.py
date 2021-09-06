@@ -6,7 +6,7 @@ from typing import List, TextIO
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from simdkalman import KalmanFilter
+from pykalman import KalmanFilter
 
 from scipy.sparse import csr, csr_matrix
 from TFM import Vectors, SparseKalman

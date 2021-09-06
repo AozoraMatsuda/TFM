@@ -168,7 +168,7 @@ class SparseKalman:
         return self
 
     def em(
-        self, data, n_iter: int = 5,
+        self, data, n_iter: int = 10,
     ):
         logging.info("Start EM Algorithm ... ")
         mdl = self

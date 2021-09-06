@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from numpy.core.numeric import identity
 from numpy.lib.npyio import save
-from pandas.util.testing import assert_frame_equal
+from pandas.util.testing import assert_frame_equal, assert_series_equal
 from pykalman import KalmanFilter
 from sklearn.metrics import r2_score
 from scipy.sparse import csr_matrix
@@ -136,17 +136,6 @@ for i in range(200):
         result_est[i].draw()
         print("###################")
 
-#%%
-train = [x.convert_to_dpf(noise_flag=False) for x in data]
-#%%
-
-result = TFF.kalman_FFTC(data=train[:101])
-#%%
-for i in range(100):
-    if i % 20 == 0:
-        result[i].draw()
-        sym_data[i].draw()
-
 
 #%%
 with open("piv.dpf", "rb") as fl:
@@ -193,10 +182,10 @@ sym_data = TFF.generate_fields(
     nRow=200,
     size=500,
     mode="cGL",
-    info={"a": 0.5, "b": 0.1, "dx": 1, "dt": 0.01},
+    info={"a": 0.5, "b": 0.1, "dx": 1, "dt": 1e-20},
 )
 #%%
-ratio = 0
+ratio = 0.2
 data_noise = []
 for df in sym_data:
     ndf = df.copy()
@@ -210,31 +199,33 @@ for df in sym_data:
 # sym_train = [x.inv_fftc(noise_flag=False) for x in sym_data]
 train_noise = [x.inv_fftc(noise_ratio=ratio) for x in data_noise]
 #%%
-dic = {}
-for noise in [1e-5, 1e-2, 1, 1e2, 1e5]:
-    result_d0 = TFF.kalman_FFTC(data=train_noise[0:400], mode=1, noise=noise)
-
-    # #%%
-    # for i in range(100):
-    #     if i % 20 == 0:
-    #         print("#################")
-    #         sym_data[i].draw()
-    #         result_d0[i].draw()
-    #         # result_d1[i].draw()
-
-    exd_0 = []
-    for i in range(300):
-        exd_0.append(
-            r2_score(
-                sym_data[i].loc[:, ["vx", "vy"]].values,
-                result_d0[i].loc[:, ["vx", "vy"]].values,
-            )
-        )
-    dic[noise] = exd_0.copy()
+result_d0 = TFF.kalman_FFTC(data=train_noise[0:400], mode=0, noise=1, use_em=False)
 # %%
-for i in range(300):
-    if i % 50 == 0:
+for i in range(100):
+    if i % 20 == 0:
         print("#################")
         sym_data[i].draw()
-        result[i].draw()
+        result_d0[i].draw()
+# %%
+exd_0 = []
+cmp = []
+for i in range(300):
+    exd_0.append(
+        r2_score(
+            sym_data[i + 1].loc[:, ["vx", "vy"]].values,
+            result_d0[i].loc[:, ["vx", "vy"]].values,
+        )
+    )
+    cmp.append(
+        r2_score(
+            sym_data[i + 1].loc[:, ["vx", "vy"]].values,
+            train_noise[i + 1].fftc().loc[:, ["vx", "vy"]].values,
+        )
+    )
+
+# %%
+plt.plot(exd_0, label="d0")
+plt.plot(cmp, label="cmp")
+plt.legend()
+
 # %%
