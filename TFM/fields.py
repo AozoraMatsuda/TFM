@@ -228,15 +228,15 @@ class TFF(Vectors):
             observation_covariance=np.identity(initial_state_vectors.shape[0]),
             transition_covariance=np.identity(initial_state_vectors.shape[0]),
         )
-        em_vars = [
-            "initial_state_covariance",
-            "observation_covariance",
-            "transition_covariance",
-        ]
-        logging.info(f"EM-algorithm for {em_vars}")
-        emed_kf = kf.em(train, em_vars=em_vars,)
-        logging.info("Start kalman-smoother")
-        smoothed_state_means, smoothed_state_covs = emed_kf.smooth(train)
+        # em_vars = [
+        #     "initial_state_covariance",
+        #     "observation_covariance",
+        #     "transition_covariance",
+        # ]
+        # logging.info(f"EM-algorithm for {em_vars}")
+        # emed_kf = kf.em(train, em_vars=em_vars,)
+        # logging.info("Start kalman-smoother")
+        smoothed_state_means, smoothed_state_covs = kf.smooth(train)
         logging.info("Done")
 
         # reconstruct traction force filed from czomplex matrix
