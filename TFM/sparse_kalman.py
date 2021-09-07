@@ -5,7 +5,7 @@ import pickle
 import numpy as np
 from tqdm import tqdm
 from scipy.sparse import csr, csr_matrix, linalg
-from typing import Tuple, List, Union
+from typing import ClassVar, Tuple, List, Union
 
 
 @dataclasses.dataclass
@@ -168,10 +168,11 @@ class SparseKalman:
         return self
 
     def em(
-        self, data, n_iter: int = 10,
+        self, data, option: List[str] = None, n_iter: int = 10,
     ):
         logging.info("Start EM Algorithm ... ")
         mdl = self
+        option = set(option)
         for _ in range(n_iter):
             mdl = mdl.Filter(data).Smoother()
             pairwise_covariances = mdl._smoothing_pairwise(
@@ -184,13 +185,22 @@ class SparseKalman:
                 smoothed_covariances=mdl.smoothed_covariances,
                 pairwise_covariances=pairwise_covariances,
             )
-            mdl.transition_matrix = params["transition matrix"]
-            mdl.transition_noise = params["transition noise"]
-            mdl.observation_noise = params["observation noise"]
-            mdl.initial_state_mean = params["initial state mean"]
-            mdl.initial_state_covariance = params["initial state covariance"]
+            if "transition matrix" in option:
+                mdl.transition_matrix = params["transition matrix"]
+            if "transition noise" in option:
+                mdl.transition_noise = params["transition noise"]
+            if "observation noise" in option:
+                mdl.observation_noise = params["observation noise"]
+            if "initial mean" in option:
+                mdl.initial_mean = params["initial mean"]
+            if "initial covariance" in option:
+                mdl.initial_covariance = params["initial covariance"]
         logging.info("DONE !")
         return mdl
+
+    @staticmethod
+    def _outer(x: csr_matrix, y: csr_matrix) -> csr_matrix:
+        x
 
     @staticmethod
     def _smoothing_pairwise(
@@ -274,7 +284,7 @@ class SparseKalman:
         res = csr_matrix(np.zeros((d_state, d_state)))
         for t in range(T - 1):
             err = smoothed_means[t + 1] - G * smoothed_means[t]
-            Vt1t_A = pairwise_covariances[t + 1] * G
+            Vt1t_A = pairwise_covariances[t + 1] * G.T
             res += (
                 err * err.T
                 + G * smoothed_covariances[t] * G.T
@@ -283,7 +293,7 @@ class SparseKalman:
                 - Vt1t_A.T
             )
 
-        return 1 / (T - 1) * res
+        return 1.0 / (T - 1) * res
 
     @staticmethod
     def _em_initial_state_mean(smoothed_means: List[csr_matrix]) -> csr_matrix:
@@ -291,7 +301,7 @@ class SparseKalman:
 
     @staticmethod
     def _em_initial_state_covariance(
-        initial_state_mean: csr_matrix,
+        initial_mean: csr_matrix,
         smoothed_means: List[csr_matrix],
         smoothed_covariances: List[csr_matrix],
     ) -> csr_matrix:
@@ -299,9 +309,9 @@ class SparseKalman:
         x0_x0 = smoothed_covariances[0] - x0 * x0.T
         return (
             x0_x0
-            - initial_state_mean * x0.T
-            - x0 * initial_state_mean.T
-            + initial_state_mean * initial_state_mean.T
+            - initial_mean * x0.T
+            - x0 * initial_mean.T
+            + initial_mean * initial_mean.T
         )
 
     @staticmethod
@@ -330,11 +340,11 @@ class SparseKalman:
             smoothed_covariances=smoothed_covariances,
             pairwise_covariances=pairwise_covariances,
         )
-        initial_state_mean = SparseKalman._em_initial_state_mean(
+        initial_mean = SparseKalman._em_initial_state_mean(
             smoothed_means=smoothed_means
         )
-        initial_state_covariance = SparseKalman._em_initial_state_covariance(
-            initial_state_mean=initial_state_mean,
+        initial_covariance = SparseKalman._em_initial_state_covariance(
+            initial_mean=initial_mean,
             smoothed_means=smoothed_means,
             smoothed_covariances=smoothed_covariances,
         )
@@ -342,8 +352,8 @@ class SparseKalman:
         results["observation noise"] = observatino_noise
         results["transition matrix"] = transition_matrix
         results["transition noise"] = transition_noise
-        results["initial state mean"] = initial_state_mean
-        results["initial state covariance"] = initial_state_covariance
+        results["initial mean"] = initial_mean
+        results["initial covariance"] = initial_covariance
         return results
 
     def export_predictions(self, is_np: bool = True):
