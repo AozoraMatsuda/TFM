@@ -169,11 +169,94 @@ class TFF(Vectors):
         ]
 
     @classmethod
+    def Smoother_FFTC(
+        cls,
+        target: "DPF",
+        mode: int = 0,
+        use_em: bool = True,
+        noise: float = 1e-12,
+        pixel: float = 0.090,
+        mu: float = 0.5,
+        E: float = 5000,
+        L: float = 0,
+        ratio: float = 0.2,
+        size: int = 500,
+    ):
+        nCol, nRow, dPixel = target.get_Dimensions()
+        D = dPixel * pixel
+        initial_state_vector, tff_index = cls.get_initial_state_vector([target])
+        T = initial_state_vector.shape[0]
+        mean = np.zeros((T,))
+        cov = np.eye(T) * np.mean(np.abs(initial_state_vector.toarray())) * ratio
+
+        tss = []
+        for _ in range(size):
+            new_vec = (
+                initial_state_vector
+                + np.random.multivariate_normal(mean, cov, size=1).T
+            )
+            tss.append(csr_matrix(new_vec))
+        H = cls._set_observation_matrix(nCol, nRow, mode=mode, D=D, mu=mu, E=E, L=L)
+        F = cls._set_transition_matrix(T, mode=mode)
+        kf = SparseKalman(
+            observation_matrix=H,
+            observation_noise=csr_matrix(cov),
+            transition_matrix=F,
+            transition_noise=csr_matrix(cov),
+            initial_mean=initial_state_vector,
+            initial_covariance=csr_matrix(cov),
+        )
+        if use_em:
+            kf = kf.em(
+                data=tss,
+                option=["observation noise", "initial_mean", "initial_covariance"],
+            )
+        kf_res = kf.Filter(data=tss).Smoother()
+        kf_res.to_pickle(name="Kalman_TFF")
+
+        smoothed_state_means, _ = kf_res.export_smoothings()
+        logging.info("Done")
+        # reconstruct traction force filed from complex matrix
+        result = []
+        for i in range(smoothed_state_means.shape[0]):
+            res_XR = smoothed_state_means[i, ::4]
+            res_YR = smoothed_state_means[i, 1::4]
+            res_XI = smoothed_state_means[i, 2::4]
+            res_YI = smoothed_state_means[i, 3::4]
+            resXCF = res_XR + 1j * res_XI
+            resYCF = res_YR + 1j * res_YI
+            res_XCF = pd.DataFrame(resXCF[: len(tff_index)], index=tff_index)
+            res_YCF = pd.DataFrame(resYCF[: len(tff_index)], index=tff_index)
+
+            res_TractionXF = np.fft.ifft2(res_XCF.unstack().values)
+            res_TractionYF = np.fft.ifft2(res_YCF.unstack().values)
+            res_TractionXR = res_TractionXF.real.flatten()
+            res_TractionYR = res_TractionYF.real.flatten()
+            res_magnitude = np.sqrt(res_TractionXR ** 2 + res_TractionYR ** 2)
+            res = TFF(
+                {
+                    "x": target.loc[:, "x"],
+                    "y": target.loc[:, "y"],
+                    "vx": res_TractionXR,
+                    "vy": res_TractionYR,
+                    "m": res_magnitude,
+                }
+            ).confirm()
+            result.append(res)
+        return result
+
+    @classmethod
     def kalman_FFTC(
         cls,
         data: list,
         mode: int = 0,
         use_em: bool = True,
+        option: List[str] = [
+            "transition noise",
+            "observation noise",
+            "initial mean",
+            "initial covariance",
+        ],
         noise: float = 1e-12,
         pixel: float = 0.090,
         mu: float = 0.5,
@@ -205,7 +288,7 @@ class TFF(Vectors):
 
         # convert initial_dpf for kalman filter
         # index for rearanging the results
-        initial_state_vectors, tff_index = cls._get_initial_state_vector(initial_dpf)
+        initial_state_vectors, tff_index = cls.get_initial_state_vector(initial_dpf)
 
         print("######")
         print("mean", np.mean(initial_state_vectors.toarray()))
@@ -229,7 +312,7 @@ class TFF(Vectors):
             initial_covariance=csr_matrix(np.eye(T) * noise * 1),
         )
         if use_em:
-            kf = kf.em(data=train)
+            kf = kf.em(data=train, option=option)
         kf_res = kf.Filter(data=train).Smoother()
         kf_res.to_pickle(name="Kalman_TFF")
 
@@ -366,7 +449,8 @@ class TFF(Vectors):
                 )
             )
 
-    def get_train_data(self, ls: list, pixel: float, mode: int):
+    @classmethod
+    def get_train_data(cls, ls: list, pixel: float, mode: int):
         res = []
         for pdf in ls:
             df = TFF(pdf.copy())
@@ -389,8 +473,8 @@ class TFF(Vectors):
         res = np.array(res)
         return [csr_matrix(data).T for data in res]
 
-    @staticmethod
-    def _get_initial_state_vector(initial_dpf: List["DPF"], mode: int = 0):
+    @classmethod
+    def get_initial_state_vector(cls, initial_dpf: List["DPF"], mode: int = 0):
         res = []
         for dpf in initial_dpf:
             initial_tff = dpf.fftc()
