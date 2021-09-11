@@ -28,11 +28,7 @@ class Vectors(pd.DataFrame):
         return data.set_index(["y", "x"]).iloc[:, 0].unstack()
 
     def draw(
-        self,
-        figsize: tuple = (5, 5),
-        scale: int = None,
-        save_img: bool = False,
-        name: str = None,
+        self, figsize: tuple = (5, 5), scale: int = None, name: str = None,
     ):
         df = self.copy()
         fig = plt.figure(figsize=figsize, facecolor="#180614", edgecolor="#302833")
@@ -71,7 +67,7 @@ class Vectors(pd.DataFrame):
             if scale is None
             else scale
         )
-        ax.quiver(
+        img = ax.quiver(
             X,
             Y,
             F_X,
@@ -84,9 +80,10 @@ class Vectors(pd.DataFrame):
             alpha=0.8,
         )
         plt.show()
-        if save_img:
-            name = name + ".png" if name is not None else "img.png"
+        if name is not None:
+            name = name + ".png"
             fig.savefig(name, facecolor="#180614", edgecolor="#180614")
+        return img
 
     @classmethod
     def generate_fields(
