@@ -13,6 +13,7 @@ from sklearn.metrics import r2_score
 from scipy.sparse import csr_matrix
 from TFM import DPF, TFF, SparseKalman
 
+np.random.seed(0)
 # %%
 path_A = "./example/PIV_A001_stack.txt"
 piv_A001 = DPF.load_DPF(path_A)
@@ -178,14 +179,14 @@ for i in range(200):
         print("#######")
 # %%
 sym_data = TFF.generate_fields(
-    nCol=200,
-    nRow=200,
-    size=500,
+    nCol=150,
+    nRow=150,
+    size=201,
     mode="cGL",
-    info={"a": 0.5, "b": 0.1, "dx": 1, "dt": 1e-20},
+    info={"a": 0.5, "b": 0.1, "dx": 1, "dt": 1e-3},
 )
 #%%
-ratio = 0.2
+ratio = 0.0
 data_noise = []
 for df in sym_data:
     ndf = df.copy()
@@ -196,36 +197,72 @@ for df in sym_data:
     ndf.loc[:, "vy"] += np.random.normal(0, my, nCol * nRow)
     data_noise.append(ndf)
 #%%
-# sym_train = [x.inv_fftc(noise_flag=False) for x in sym_data]
+sym_train = [x.inv_fftc(noise_flag=False) for x in sym_data]
 train_noise = [x.inv_fftc(noise_ratio=ratio) for x in data_noise]
 #%%
-result_d0 = TFF.kalman_FFTC(data=train_noise[0:400], mode=0, noise=1, use_em=False)
+result_d0 = TFF.kalman_FFTC(data=train_noise[0:201], mode=0, use_em=True,)
 # %%
-for i in range(100):
-    if i % 20 == 0:
+for i in range(200):
+    if i % 40 == 0:
         print("#################")
-        sym_data[i].draw()
-        result_d0[i].draw()
+        sym_data[i + 1].draw(
+            name=f"/Users/matsudaaozora/Documents/outputs/N000/EX_{i:0>3}"
+        )
+        train_noise[i + 1].fftc().draw(
+            name=f"/Users/matsudaaozora/Documents/outputs/N000/FT_{i:0>3}"
+        )
+        # result_d0[i].draw(name=f"/Users/matsudaaozora/Documents/outputs/N000/KS_{i:0>3}")
 # %%
 exd_0 = []
 cmp = []
-for i in range(300):
-    exd_0.append(
-        r2_score(
-            sym_data[i + 1].loc[:, ["vx", "vy"]].values,
-            result_d0[i].loc[:, ["vx", "vy"]].values,
-        )
-    )
+for i in range(200):
+    # exd_0.append(
+    #     r2_score(
+    #         data_noise[i + 1].loc[:, ["vx", "vy"]].values,
+    #         result_d0[i].loc[:, ["vx", "vy"]].values,
+    #     )
+    # )
     cmp.append(
         r2_score(
-            sym_data[i + 1].loc[:, ["vx", "vy"]].values,
+            data_noise[i + 1].loc[:, ["vx", "vy"]].values,
             train_noise[i + 1].fftc().loc[:, ["vx", "vy"]].values,
         )
     )
 
 # %%
-plt.plot(exd_0, label="d0")
+# plt.plot(exd_0, label="d0")
 plt.plot(cmp, label="cmp")
 plt.legend()
 
 # %%
+
+#%%
+vec = train_noise[0]
+
+# %%
+res = TFF.Smoother_FFTC(target=vec)
+# %%
+from PIL import Image
+import os
+import glob
+
+# GIFアニメーションを作成
+def create_gif(in_dir, out_filename):
+    path_list = sorted(glob.glob(os.path.join(*[in_dir, "*"])))  # ファイルパスをソートしてリストする
+    imgs = []  # 画像をappendするための空配列を定義
+
+    # ファイルのフルパスからファイル名と拡張子を抽出
+    for i in range(len(path_list)):
+        img = Image.open(path_list[i])  # 画像ファイルを1つずつ開く
+        imgs.append(img)  # 画像をappendで配列に格納していく
+
+    # appendした画像配列をGIFにする。durationで持続時間、loopでループ数を指定可能。
+    imgs[0].save(
+        out_filename,
+        save_all=True,
+        append_images=imgs[1:],
+        optimize=False,
+        duration=100,
+        loop=0,
+    )
+
