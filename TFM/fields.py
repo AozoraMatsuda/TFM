@@ -16,6 +16,8 @@ from TFM.utils import (
     fft_for_vectors,
     get_Wavefunction_in_FS,
     is_edge,
+    extract_original_values,
+    reconstruct_field,
 )
 
 
@@ -252,6 +254,8 @@ class TFF(Vectors):
         mu: float = 0.5,
         E: float = 5000,
         L: float = 0,
+        trns_n=1,
+        obs_n=1,
     ) -> "TFF":
         """
         Estimate traction force fields from a list of dipslacement fields by usign kalman-smoother
@@ -294,8 +298,8 @@ class TFF(Vectors):
             initial_state_covariance=np.identity(T),
             transition_matrices=F,
             observation_matrices=H,
-            observation_covariance=np.identity(T),
-            transition_covariance=np.identity(T),
+            observation_covariance=np.identity(T) * obs_n,
+            transition_covariance=np.identity(T) * trns_n,
         )
         em_vars = [
             "initial_state_mean",
@@ -305,7 +309,7 @@ class TFF(Vectors):
         ]
         logging.info(f"EM-algorithm for {em_vars}")
         if use_em:
-            kf = kf.em(train, em_vars=em_vars,)
+            kf = kf.em(train, em_vars=em_vars, n_iter=5)
         logging.info("Start kalman-smoother")
         smoothed_state_means, smoothed_state_covs = kf.smooth(train)
         logging.info("Done")
@@ -318,11 +322,14 @@ class TFF(Vectors):
             res_YI = smoothed_state_means[i, 3::4]
             resXCF = res_XR + 1j * res_XI
             resYCF = res_YR + 1j * res_YI
-            res_XCF = pd.DataFrame(resXCF[: len(tff_index)], index=tff_index)
-            res_YCF = pd.DataFrame(resYCF[: len(tff_index)], index=tff_index)
+            res_XCF = pd.DataFrame(resXCF[: len(tff_index)], index=tff_index).unstack()
+            res_YCF = pd.DataFrame(resYCF[: len(tff_index)], index=tff_index).unstack()
 
-            res_TractionXF = np.fft.ifft2(res_XCF.unstack().values)
-            res_TractionYF = np.fft.ifft2(res_YCF.unstack().values)
+            res_XCF = reconstruct_field(res_XCF)
+            res_YCF = reconstruct_field(res_YCF)
+
+            res_TractionXF = np.fft.ifft2(res_XCF.values)
+            res_TractionYF = np.fft.ifft2(res_YCF.values)
             res_TractionXR = res_TractionXF.real.flatten()
             res_TractionYR = res_TractionYF.real.flatten()
             res_magnitude = np.sqrt(res_TractionXR ** 2 + res_TractionYR ** 2)
@@ -336,7 +343,7 @@ class TFF(Vectors):
                 }
             ).confirm()
             result.append(res)
-        return result
+        return result, kf, smoothed_state_means
 
     def inv_fftc(
         self,
@@ -445,9 +452,11 @@ class TFF(Vectors):
             df = TFF(pdf.copy())
             df.loc[:, "vx"] *= pixel
             df.loc[:, "vy"] *= pixel
-            disXCF = pd.DataFrame(fft_for_vectors(df, "vx")).stack()
+            disXCF = pd.DataFrame(fft_for_vectors(df, "vx"))
+            disXCF = extract_original_values(disXCF).stack()
             disXR, disXI = convert_complex_to_vectors(disXCF)
-            disYCF = pd.DataFrame(fft_for_vectors(df, "vy")).stack()
+            disYCF = pd.DataFrame(fft_for_vectors(df, "vy"))
+            disYCF = extract_original_values(disYCF).stack()
             disYR, disYI = convert_complex_to_vectors(disYCF)
             obsCF = (
                 pd.concat([disXR, disYR, disXI, disYI]).sort_index().astype("float64")
@@ -467,8 +476,10 @@ class TFF(Vectors):
         res = []
         for dpf in initial_dpf:
             initial_tff = dpf.fftc()
-            tffXCF = pd.DataFrame(fft_for_vectors(initial_tff, "vx")).stack()
-            tffYCF = pd.DataFrame(fft_for_vectors(initial_tff, "vy")).stack()
+            tffXCF = pd.DataFrame(fft_for_vectors(initial_tff, "vx"))
+            tffXCF = extract_original_values(tffXCF).stack()
+            tffYCF = pd.DataFrame(fft_for_vectors(initial_tff, "vy"))
+            tffYCF = extract_original_values(tffYCF).stack()
 
             # split complex data to real part and imaginary part
             tffXR, tffXI = convert_complex_to_vectors(tffXCF)
