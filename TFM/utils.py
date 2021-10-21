@@ -76,16 +76,16 @@ def fft_for_vectors(df, target: str) -> np.ndarray:
 
 
 def extract_original_values(df: pd.DataFrame) -> pd.DataFrame:
-    ncol, nrow = df.shape
-    return df.iloc[: ncol // 2 + 1, :]
+    nrow, ncol = df.shape
+    return df.iloc[: nrow // 2 + 1, :]
 
 
-def reconstruct_field(df: pd.DataFrame) -> pd.DataFrame:
-    ncol, nrow = df.shape
-    res = pd.DataFrame(np.zeros((ncol + ncol // 2, nrow)))
-    res.iloc[:ncol, :] = df.copy()
-    for i in range(ncol):
-        for j in range(nrow):
+def reconstruct_field(df: pd.DataFrame, nRow: int) -> pd.DataFrame:
+    nrow, ncol = df.shape
+    res = pd.DataFrame(np.zeros((nRow, ncol)))
+    res.iloc[:nrow, :] = df.copy()
+    for i in range(nrow):
+        for j in range(ncol):
             res.iloc[-i, -j] = df.iloc[i, j].conjugate()
     return res
 

@@ -287,13 +287,12 @@ class TFF(Vectors):
         # set obervation matrix
         # beta_(t+1) ~ beta_t
         # the vectors should be arranged by (xi_real, yi_real, xi_imag, yi_imag)
+        print(initial_state_vectors.shape)
         T = initial_state_vectors.shape[0]
         H = cls._set_observation_matrix(nCol, nRow, mode=mode, D=D, mu=mu, E=E, L=L)
         F = cls._set_transition_matrix(T, mode=mode)
 
         kf = KalmanFilter(
-            n_dim_obs=T,
-            n_dim_state=T,
             initial_state_mean=initial_state_vectors,
             initial_state_covariance=np.identity(T),
             transition_matrices=F,
@@ -309,7 +308,7 @@ class TFF(Vectors):
         ]
         logging.info(f"EM-algorithm for {em_vars}")
         if use_em:
-            kf = kf.em(train, em_vars=em_vars, n_iter=5)
+            kf = kf.em(train, em_vars=em_vars, n_iter=10)
         logging.info("Start kalman-smoother")
         smoothed_state_means, smoothed_state_covs = kf.smooth(train)
         logging.info("Done")
@@ -325,8 +324,8 @@ class TFF(Vectors):
             res_XCF = pd.DataFrame(resXCF[: len(tff_index)], index=tff_index).unstack()
             res_YCF = pd.DataFrame(resYCF[: len(tff_index)], index=tff_index).unstack()
 
-            res_XCF = reconstruct_field(res_XCF)
-            res_YCF = reconstruct_field(res_YCF)
+            res_XCF = reconstruct_field(res_XCF, nRow=nRow)
+            res_YCF = reconstruct_field(res_YCF, nRow=nRow)
 
             res_TractionXF = np.fft.ifft2(res_XCF.values)
             res_TractionYF = np.fft.ifft2(res_YCF.values)
@@ -417,6 +416,7 @@ class TFF(Vectors):
         E: float = 5000,
         L: float = 0,
     ):
+        nRow = nRow // 2 + 1
         Kx = get_Wavefunction_in_FS(nCol, D)
         Ky = get_Wavefunction_in_FS(nRow, D)
         H = np.zeros([4 * nCol * nRow, 4 * nCol * nRow], dtype=np.float64)
