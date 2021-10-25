@@ -139,7 +139,7 @@ for i in range(200):
 
 
 #%%
-with open("piv.dpf", "rb") as fl:
+with open("/Users/matsudaaozora/Documents/piv_all.dpf", "rb") as fl:
     data = pickle.load(fl)
 train = []
 for i in range(len(data)):
@@ -179,14 +179,14 @@ for i in range(200):
         print("#######")
 # %%
 sym_data = TFF.generate_fields(
-    nCol=150,
-    nRow=150,
-    size=201,
+    nCol=320,
+    nRow=320,
+    size=450,
     mode="cGL",
     info={"a": 0.5, "b": 0.1, "dx": 1, "dt": 1e-3},
 )
 #%%
-ratio = 0.0
+ratio = 0.4
 data_noise = []
 for df in sym_data:
     ndf = df.copy()
@@ -197,40 +197,42 @@ for df in sym_data:
     ndf.loc[:, "vy"] += np.random.normal(0, my, nCol * nRow)
     data_noise.append(ndf)
 #%%
-sym_train = [x.inv_fftc(noise_flag=False) for x in sym_data]
+# sym_train = [x.inv_fftc(noise_flag=False) for x in sym_data]
 train_noise = [x.inv_fftc(noise_ratio=ratio) for x in data_noise]
 #%%
-result_d0 = TFF.kalman_FFTC(data=train_noise[0:201], mode=0, use_em=True,)
+result_d0, kf, smoothed_state_means = TFF.kalman_FFTC(
+    data=train_noise[200:401], mode=0, use_em=True,
+)
 # %%
-for i in range(200):
+for i in range(200, 400):
     if i % 40 == 0:
         print("#################")
         sym_data[i + 1].draw(
-            name=f"/Users/matsudaaozora/Documents/outputs/N000/EX_{i:0>3}"
+            # name=f"/Users/matsudaaozora/Documents/outputs/N000/EX_{i:0>3}"
         )
-        train_noise[i + 1].fftc().draw(
-            name=f"/Users/matsudaaozora/Documents/outputs/N000/FT_{i:0>3}"
-        )
-        # result_d0[i].draw(name=f"/Users/matsudaaozora/Documents/outputs/N000/KS_{i:0>3}")
+        # train_noise[i + 1].fftc().draw(
+        #     name=f"/Users/matsudaaozora/Documents/outputs/N000/FT_{i:0>3}"
+        # )
+        result_d0[i - 200].draw()
 # %%
 exd_0 = []
 cmp = []
-for i in range(200):
-    # exd_0.append(
-    #     r2_score(
-    #         data_noise[i + 1].loc[:, ["vx", "vy"]].values,
-    #         result_d0[i].loc[:, ["vx", "vy"]].values,
-    #     )
-    # )
+for i in range(200, 300):
+    exd_0.append(
+        r2_score(
+            sym_data[i + 1].loc[:, ["vx", "vy"]].values,
+            result_d0[i - 200].loc[:, ["vx", "vy"]].values,
+        )
+    )
     cmp.append(
         r2_score(
-            data_noise[i + 1].loc[:, ["vx", "vy"]].values,
+            sym_data[i + 1].loc[:, ["vx", "vy"]].values,
             train_noise[i + 1].fftc().loc[:, ["vx", "vy"]].values,
         )
     )
 
 # %%
-# plt.plot(exd_0, label="d0")
+plt.plot(exd_0, label="d0")
 plt.plot(cmp, label="cmp")
 plt.legend()
 

@@ -73,3 +73,19 @@ def convert_complex_to_vectors(df: pd.DataFrame) -> pd.DataFrame:
 def fft_for_vectors(df, target: str) -> np.ndarray:
     Vec = df.rearrange_by_coordinate(target)
     return np.fft.fft2(Vec)
+
+
+def extract_original_values(df: pd.DataFrame) -> pd.DataFrame:
+    nrow, ncol = df.shape
+    return df.iloc[: nrow // 2 + 1, :]
+
+
+def reconstruct_field(df: pd.DataFrame, nRow: int) -> pd.DataFrame:
+    nrow, ncol = df.shape
+    res = pd.DataFrame(np.zeros((nRow, ncol)))
+    res.iloc[:nrow, :] = df.copy()
+    for i in range(nrow):
+        for j in range(ncol):
+            res.iloc[-i, -j] = df.iloc[i, j].conjugate()
+    return res
+
