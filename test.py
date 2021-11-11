@@ -291,3 +291,69 @@ def create_gif(in_dir, out_filename):
         loop=0,
     )
 
+
+# %%
+create_gif(
+    in_dir="/Users/matsudaaozora/Documents/outputs/dpf/N000/",
+    out_filename="/Users/matsudaaozora/Documents/outputs/dpf/N000.gif",
+)
+# %%
+create_gif(
+    in_dir="/Users/matsudaaozora/Documents/outputs/dpf/N040/",
+    out_filename="/Users/matsudaaozora/Documents/outputs/dpf/N040.gif",
+)
+# %%
+create_gif(
+    in_dir="/Users/matsudaaozora/Documents/outputs/dpf/N100/",
+    out_filename="/Users/matsudaaozora/Documents/outputs/dpf/N100.gif",
+)
+# %%
+create_gif(
+    in_dir="/Users/matsudaaozora/Documents/outputs/noised/N000/",
+    out_filename="/Users/matsudaaozora/Documents/outputs/noised/N000.gif",
+)
+# %%
+create_gif(
+    in_dir="/Users/matsudaaozora/Documents/outputs/noised/N040/",
+    out_filename="/Users/matsudaaozora/Documents/outputs/noised/N040.gif",
+)
+# %%
+create_gif(
+    in_dir="/Users/matsudaaozora/Documents/outputs/noised/N100/",
+    out_filename="/Users/matsudaaozora/Documents/outputs/noised/N100.gif",
+)
+# %%
+create_gif(
+    in_dir="/Users/matsudaaozora/Documents/outputs/fttc/N000/",
+    out_filename="/Users/matsudaaozora/Documents/outputs/fttc/N000.gif",
+)
+# %%
+create_gif(
+    in_dir="/Users/matsudaaozora/Documents/outputs/fttc/N040/",
+    out_filename="/Users/matsudaaozora/Documents/outputs/fttc/N040.gif",
+)
+# %%
+create_gif(
+    in_dir="/Users/matsudaaozora/Documents/outputs/fttc/N100/",
+    out_filename="/Users/matsudaaozora/Documents/outputs/fttc/N100.gif",
+)
+
+# %%
+create_gif(
+    in_dir="/Users/matsudaaozora/Documents/outputs/kalman/N000/",
+    out_filename="/Users/matsudaaozora/Documents/outputs/kalman/N000.gif",
+)
+# %%
+create_gif(
+    in_dir="/Users/matsudaaozora/Documents/outputs/kalman/N040/",
+    out_filename="/Users/matsudaaozora/Documents/outputs/kalman/N040.gif",
+)
+
+# %%
+create_gif(
+    in_dir="/Users/matsudaaozora/Documents/outputs/kalman/N100/",
+    out_filename="/Users/matsudaaozora/Documents/outputs/kalman/N100.gif",
+)
+
+# %%
+# %%
