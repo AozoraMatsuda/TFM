@@ -197,7 +197,7 @@ for df in sym_data:
     ndf.loc[:, "vy"] += np.random.normal(0, my, nCol * nRow)
     data_noise.append(ndf)
 #%%
-sym_train = [x.inv_fftc(noise_flag=False) for x in sym_data]
+# sym_train = [x.inv_fftc(noise_flag=False) for x in sym_data]
 train_noise = [x.inv_fftc(noise_ratio=ratio) for x in data_noise]
 #%%
 result_d0 = TFF.kalman_FFTC(data=train_noise[0:201], mode=0, use_em=True,)
@@ -216,12 +216,12 @@ for i in range(200):
 exd_0 = []
 cmp = []
 for i in range(200):
-    # exd_0.append(
-    #     r2_score(
-    #         data_noise[i + 1].loc[:, ["vx", "vy"]].values,
-    #         result_d0[i].loc[:, ["vx", "vy"]].values,
-    #     )
-    # )
+    exd_0.append(
+        r2_score(
+            data_noise[i + 1].loc[:, ["vx", "vy"]].values,
+            result_d0[i].loc[:, ["vx", "vy"]].values,
+        )
+    )
     cmp.append(
         r2_score(
             data_noise[i + 1].loc[:, ["vx", "vy"]].values,
@@ -229,11 +229,23 @@ for i in range(200):
         )
     )
 
-# %%
-# plt.plot(exd_0, label="d0")
-plt.plot(cmp, label="cmp")
-plt.legend()
 
+# %%
+fig = plt.figure(figsize=(15, 10))
+flg = 20
+fti = 20
+x_min = -10
+x_max = 210
+plt.xlim(x_min, x_max)
+plt.ylim(-0.2, 1.0)
+plt.plot(exd_0, label="d0")
+plt.plot(cmp, label="cmp")
+# plt.hlines([0], x_min, x_max, "blue", linestyles="dashed")
+plt.xlabel("Frame", fontsize=18)
+plt.ylabel("R2", fontsize=18)
+plt.tick_params(labelsize=18)
+plt.legend(fontsize=flg,)
+fig.savefig("/Users/matsudaaozora/Documents/outputs/R2_N000.png")
 # %%
 
 #%%
