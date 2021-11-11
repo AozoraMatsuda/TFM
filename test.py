@@ -178,6 +178,7 @@ for i in range(200):
         result_est[i].draw()
         print("#######")
 # %%
+np.random.seed(0)
 sym_data = TFF.generate_fields(
     nCol=150,
     nRow=150,
@@ -186,6 +187,7 @@ sym_data = TFF.generate_fields(
     info={"a": 0.5, "b": 0.1, "dx": 1, "dt": 1e-3},
 )
 #%%
+np.random.seed(0)
 ratio = 0.0
 data_noise = []
 for df in sym_data:
@@ -197,19 +199,26 @@ for df in sym_data:
     ndf.loc[:, "vy"] += np.random.normal(0, my, nCol * nRow)
     data_noise.append(ndf)
 #%%
+np.random.seed(0)
 # sym_train = [x.inv_fftc(noise_flag=False) for x in sym_data]
 train_noise = [x.inv_fftc(noise_ratio=ratio) for x in data_noise]
 #%%
 result_d0 = TFF.kalman_FFTC(data=train_noise[0:201], mode=0, use_em=True,)
 # %%
 for i in range(200):
-    if i % 40 == 0:
+    if i % 5 == 0:
         print("#################")
         sym_data[i + 1].draw(
-            name=f"/Users/matsudaaozora/Documents/outputs/N000/EX_{i:0>3}"
+            name=f"/Users/matsudaaozora/Documents/outputs/dpf/N000/{i:0>3}"
+        )
+        train_noise[i + 1].draw(
+            name=f"/Users/matsudaaozora/Documents/outputs/noised/N000/{i:0>3}"
         )
         train_noise[i + 1].fftc().draw(
-            name=f"/Users/matsudaaozora/Documents/outputs/N000/FT_{i:0>3}"
+            name=f"/Users/matsudaaozora/Documents/outputs/fttc/N000/{i:0>3}"
+        )
+        result_d0[i].draw(
+            name=f"/Users/matsudaaozora/Documents/outputs/kalman/N000/{i:0>3}"
         )
         # result_d0[i].draw(name=f"/Users/matsudaaozora/Documents/outputs/N000/KS_{i:0>3}")
 # %%
@@ -237,17 +246,17 @@ fti = 20
 x_min = -10
 x_max = 210
 plt.xlim(x_min, x_max)
-plt.ylim(-0.2, 1.0)
+# plt.ylim(0.0, 1.0)
 plt.plot(exd_0, label="d0")
 plt.plot(cmp, label="cmp")
-# plt.hlines([0], x_min, x_max, "blue", linestyles="dashed")
+plt.hlines([0], x_min, x_max, "blue", linestyles="dashed")
 plt.xlabel("Frame", fontsize=18)
 plt.ylabel("R2", fontsize=18)
 plt.tick_params(labelsize=18)
 plt.legend(fontsize=flg,)
-fig.savefig("/Users/matsudaaozora/Documents/outputs/R2_N000.png")
+fig.savefig("/Users/matsudaaozora/Documents/outputs/R2_N100.png")
 # %%
-
+d_max = 0.6598573422694021
 #%%
 vec = train_noise[0]
 
