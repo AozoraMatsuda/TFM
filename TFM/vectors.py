@@ -63,7 +63,7 @@ class Vectors(pd.DataFrame):
 
         # auto scale
         scale = (
-            max(F_X.abs().max() / (0.05 * width), F_Y.abs().max() / (0.05 * height))
+            max(F_X.abs().max() / (0.15 * width), F_Y.abs().max() / (0.15 * height))
             if scale is None
             else scale
         )
