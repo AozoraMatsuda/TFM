@@ -188,7 +188,7 @@ sym_data = TFF.generate_fields(
 )
 #%%
 np.random.seed(0)
-ratio = 1.0
+ratio = 0.4
 data_noise = []
 for df in sym_data:
     ndf = df.copy()
@@ -209,21 +209,25 @@ for i in range(200):
     if i % 5 == 0:
         print("#################")
         sym_data[i + 1].draw(
-            name=f"/Users/matsudaaozora/Documents/outputs/dpf/N100/{i:0>3}",
+            name=f"/Users/matsudaaozora/Documents/outputs/dpf/N040/{i:0>3}",
             # figsize=(10, 10),
         )
         train_noise[i + 1].draw(
-            name=f"/Users/matsudaaozora/Documents/outputs/noised/N100/{i:0>3}",
+            name=f"/Users/matsudaaozora/Documents/outputs/noised/N040/{i:0>3}",
             # figsize=(10, 10),
         )
-        train_noise[i + 1].fftc().draw(
-            name=f"/Users/matsudaaozora/Documents/outputs/fttc/N100/{i:0>3}",
+        data_noise[i + 1].draw(
+            name=f"/Users/matsudaaozora/Documents/outputs/data_noise/N040/{i:0>3}",
             # figsize=(10, 10),
         )
-        result_d0[i].draw(
-            name=f"/Users/matsudaaozora/Documents/outputs/kalman/N100/{i:0>3}",
-            # figsize=(10, 10),
-        )
+        # train_noise[i + 1].fftc().draw(
+        #     name=f"/Users/matsudaaozora/Documents/outputs/fttc/N000/{i:0>3}",
+        #     # figsize=(10, 10),
+        # )
+        # result_d0[i].draw(
+        #     name=f"/Users/matsudaaozora/Documents/outputs/kalman/N000/{i:0>3}",
+        #     # figsize=(10, 10),
+        # )
         # result_d0[i].draw(name=f"/Users/matsudaaozora/Documents/outputs/N000/KS_{i:0>3}")
 # %%
 exd_0 = []
@@ -356,4 +360,8 @@ create_gif(
 )
 
 # %%
+create_gif(
+    in_dir="/Users/matsudaaozora/Documents/outputs/data_noise/N040/",
+    out_filename="/Users/matsudaaozora/Documents/outputs/data_noise/N040.gif",
+)
 # %%
