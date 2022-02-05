@@ -1,3 +1,4 @@
+from ctypes.wintypes import HACCEL
 import logging
 from os import stat
 from types import DynamicClassAttribute
@@ -367,6 +368,7 @@ class TFF(Vectors):
         Kx = get_Wavefunction_in_FS(nCol, D)
         Ky = get_Wavefunction_in_FS(nRow, D)
 
+        H = np.identity(2, dtype=np.complex) * L * L
         G = np.zeros([2, 2], dtype=np.complex)
         disXCF = np.zeros([nRow, nCol], dtype=np.complex)
         disYCF = np.zeros([nRow, nCol], dtype=np.complex)
@@ -375,8 +377,12 @@ class TFF(Vectors):
             for j in range(len(Kx)):
                 flag = is_edge(j, i, nCol, nRow)
                 G = calc_Green(Kx[j], Ky[i], flag, mu, E)
+                Gt = G.T
+                Gti = np.linalg.inv(Gt)
+                G1 = Gt @ G
+                G1 += H
                 dd = np.array([tffXCF[i, j], tffYCF[i, j]])
-                TXY = G @ dd
+                TXY = Gti @ G1 @ dd
                 disXCF[i, j] = TXY[0]
                 disYCF[i, j] = TXY[1]
 
